@@ -1,0 +1,10 @@
+
+sudo apt-get install gcc-4.9-aarch64-linux-gnu
+sudo apt install gcc-aarch64-linux-gnu
+
+you can run ./make.sh to build the kernel image.
+
+Then copy the kernel image for mmcblk0p2:
+scp chrome/kernel.img root@172.16.22.38:/dev/mmcblk0p2
+
+

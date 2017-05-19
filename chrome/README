@@ -1,0 +1,13 @@
+#
+# This tool package is used to build and download image to chromeos
+# devices in ubuntu environment.
+#
+# There may need a little fix like to correct the miniloader version
+#
+
+To build kernel for chromeos, execute:
+$ ./chrome/make_kernel.sh
+
+To download kernel to chromeos device, execute:
+$ ./chrome/dl_kernel.sh
+

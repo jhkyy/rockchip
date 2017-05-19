@@ -1,0 +1,19 @@
+
+# Created by cros_sysroot_utils from --board=gru.
+ARCH="arm"
+BOARD_OVERLAY="/mnt/host/source/src/overlays/chipset-rk3399
+/mnt/host/source/src/overlays/baseboard-gru
+/mnt/host/source/src/overlays/project-freon
+/mnt/host/source/src/overlays/overlay-gru"
+BOARD_USE="gru"
+CHOST="armv7a-cros-linux-gnueabi"
+MAKEOPTS="-j8"
+PKG_CONFIG="/build/gru/build/bin/pkg-config"
+PORTDIR_OVERLAY="/mnt/host/source/src/third_party/eclass-overlay
+/mnt/host/source/src/third_party/portage-stable
+/mnt/host/source/src/third_party/chromiumos-overlay
+/mnt/host/source/src/overlays/chipset-rk3399
+/mnt/host/source/src/overlays/baseboard-gru
+/mnt/host/source/src/overlays/project-freon
+/mnt/host/source/src/overlays/overlay-gru"
+ROOT="/build/gru/"
