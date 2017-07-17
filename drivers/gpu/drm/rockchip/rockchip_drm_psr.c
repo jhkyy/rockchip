@@ -225,6 +225,8 @@ int rockchip_drm_psr_register(struct drm_encoder *encoder,
 	struct psr_drv *psr;
 	unsigned long flags;
 
+	return 0;
+
 	if (!encoder || !psr_set)
 		return -EINVAL;
 
