@@ -401,8 +401,6 @@
 };
 
 &usb_host1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&usbhub_rst>;
 	status = "okay";
 };
 
@@ -583,10 +581,6 @@
 	usb_host {
 		host_vbus_drv: host-vbus-drv {
 			rockchip,pins = <0 14 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-
-		usbhub_rst: usbhub-rst {
-			rockchip,pins = <8 3 RK_FUNC_GPIO &pcfg_output_high>;
 		};
 	};
 
