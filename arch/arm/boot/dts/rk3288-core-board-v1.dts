@@ -270,12 +270,12 @@
 		mpu-debug = <1>;
 	};
 
-	sensor@10 {
+	sensor@48 {
 		status = "okay";
-		compatible = "capella,light_cm3218";
+		compatible = "light_cm3218";
 		pinctrl-names = "default";
 		pinctrl-0 = <&cm3218_irq_gpio>;
-		reg = <0x10>;
+		reg = <0x48>;
 		type = <SENSOR_TYPE_LIGHT>;
 		irq-gpio = <&gpio8 3 IRQ_TYPE_EDGE_FALLING>;
 		irq_enable = <1>;
