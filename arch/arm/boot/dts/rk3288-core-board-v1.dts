@@ -87,17 +87,6 @@
 				sound-dai = <&rt5670>;
 			};
 		};
-
-		simple-audio-card,dai-link@1 {
-			format = "i2s";
-			cpu {
-				sound-dai = <&i2s>;
-			};
-
-			codec {
-				sound-dai = <&hdmi>;
-			};
-		};
 	};
 
 	vcc_sys: vcc-sys {
@@ -369,6 +358,11 @@
 		rockchip,camera-module-flash-support = <0>;
 		rockchip,camera-module-mipi-dphy-index = <0>;
 	};
+};
+
+&i2s {
+	#sound-dai-cells = <0>;
+	status = "okay";
 };
 
 &io_domains {
