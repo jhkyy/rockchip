@@ -623,7 +623,7 @@ config SND_SOC_RT5651
 	tristate "Realtek ALC5651 CODEC"
 
 config SND_SOC_RT5670
-	tristate
+	tristate "Realtek ALC5670 CODEC"
 
 config SND_SOC_RT5677
 	tristate
