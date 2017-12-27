@@ -145,7 +145,7 @@
 		vin-supply = <&vcc1v8_pmupll>;
 	};
 
-	vdd_3v3: vcc_io: vcc_wl: vdd-33 {
+	vdd_3v3: vcc_io: vccio_wl: vdd-33 {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_33";
 		regulator-min-microvolt = <3300000>;
@@ -211,6 +211,27 @@
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
 		vin-supply = <&vcc_io>;  
+	};
+
+	vcc_wl: vcc_wl {
+		compatible = "regulator-fixed";
+		gpio = <&gpio4 28 GPIO_ACTIVE_LOW>;
+		enable-active-high;
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_reg_on>;
+		regulator-name = "vcc_wl";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
+	wireless-wlan {
+		compatible = "wlan-platdata";
+		rockchip,grf = <&grf>;
+		wifi_chip_type = "ap6335";
+		sdio_vref = <3300>;
+
+		WIFI,host_wake_irq = <&gpio4 30 GPIO_ACTIVE_HIGH>;
+		status = "okay";
 	};
 };
 
@@ -406,6 +427,22 @@
 	supports-sd;
 	vmmc-supply = <&vccio_sd>;
 	vqmmc-supply = <&vccio_sd>;
+	status = "okay";
+};
+
+&sdio0 {
+	clock-frequency = <50000000>;
+	clock-freq-min-max = <200000 50000000>;
+	bus-width = <4>;
+	cap-sd-highspeed;
+	cap-sdio-irq;
+	disable-wp;
+	non-removable;
+	num-slots = <1>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdio0_bus4 &sdio0_cmd &sdio0_clk &sdio0_int>;
+	vmmc-supply = <&vcc_wl>;
+	supports-sdio;
 	status = "okay";
 };
 
@@ -640,6 +677,12 @@
 	usb_otg {
 		otg_vbus_drv: otg-vbus-drv {
 			rockchip,pins = <0 12 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	wireless {
+		wifi_reg_on: wifi-reg-on {
+			rockchip,pins = <4 28 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
