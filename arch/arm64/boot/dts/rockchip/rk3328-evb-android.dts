@@ -126,6 +126,15 @@
 	cpu-supply = <&vdd_arm>;
 };
 
+&dfi {
+	status = "okay";
+};
+
+&dmc {
+	center-supply = <&vdd_logic>;
+	status = "okay";
+};
+
 &emmc {
 	bus-width = <8>;
 	cap-mmc-highspeed;
@@ -191,7 +200,6 @@
 		interrupts = <6 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_int_l>;
-		rockchip,system-power-controller;
 		wakeup-source;
 		gpio-controller;
 		#gpio-cells = <2>;
@@ -485,6 +493,12 @@
 
 &rkvdec {
 	status = "okay";
+	vcodec-supply = <&vdd_logic>;
+};
+
+&rockchip_suspend {
+	status = "okay";
+	rockchip,virtual-poweroff = <1>;
 };
 
 &uart0 {
@@ -531,7 +545,24 @@
 	status = "okay";
 };
 
+&threshold {
+	temperature = <90000>; /* millicelsius */
+};
+
+&target {
+	temperature = <105000>; /* millicelsius */
+};
+
+&soc_crit {
+	temperature = <110000>; /* millicelsius */
+};
+
 &tsadc {
+	rockchip,hw-tshut-temp = <120000>;
+	status = "okay";
+};
+
+&tve {
 	status = "okay";
 };
 

@@ -112,7 +112,7 @@ static
 struct drm_connector *find_connector_by_bridge(struct drm_device *drm_dev,
 					       struct device_node *node)
 {
-	struct device_node *np_encoder, *np_connector;
+	struct device_node *np_encoder, *np_connector = NULL;
 	struct drm_encoder *encoder;
 	struct drm_connector *connector = NULL;
 	struct device_node *port, *endpoint;
@@ -1113,6 +1113,12 @@ static int rockchip_drm_create_properties(struct drm_device *dev)
 		return -ENOMEM;
 	private->color_space_prop = prop;
 
+	prop = drm_property_create_range(dev, DRM_MODE_PROP_ATOMIC,
+					 "GLOBAL_ALPHA", 0, 255);
+	if (!prop)
+		return -ENOMEM;
+	private->global_alpha_prop = prop;
+
 	return drm_mode_create_tv_properties(dev, 0, NULL);
 }
 
@@ -1750,6 +1756,13 @@ static int rockchip_drm_platform_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void rockchip_drm_platform_shutdown(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+
+	rockchip_drm_sys_suspend(dev);
+}
+
 static const struct of_device_id rockchip_drm_dt_ids[] = {
 	{ .compatible = "rockchip,display-subsystem", },
 	{ /* sentinel */ },
@@ -1759,6 +1772,7 @@ MODULE_DEVICE_TABLE(of, rockchip_drm_dt_ids);
 static struct platform_driver rockchip_drm_platform_driver = {
 	.probe = rockchip_drm_platform_probe,
 	.remove = rockchip_drm_platform_remove,
+	.shutdown = rockchip_drm_platform_shutdown,
 	.driver = {
 		.name = "rockchip-drm",
 		.of_match_table = rockchip_drm_dt_ids,
