@@ -62,6 +62,20 @@
 		status = "okay";
 	};
 
+	sdio_pwrseq: sdio-pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_enable_h>;
+
+		/*
+		 * On the module itself this is one of these (depending
+		 * on the actual card populated):
+		 * - SDIO_RESET_L_WL_REG_ON
+		 * - PDN (power down when low)
+		 */
+		reset-gpios = <&gpio4 RK_PD4 GPIO_ACTIVE_LOW>;
+	};
+
 	sound: sound {
 		status = "okay";
 		compatible = "simple-audio-card";
@@ -173,24 +187,12 @@
 		vin-supply = <&vcc_io>;  
 	};
 
-	vcc_wl: vcc_wl {
-		compatible = "regulator-fixed";
-		gpio = <&gpio4 28 GPIO_ACTIVE_LOW>;
-		enable-active-high;
-		pinctrl-names = "default";
-		pinctrl-0 = <&wifi_reg_on>;
-		regulator-name = "vcc_wl";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-	};
-
 	wireless-wlan {
 		compatible = "wlan-platdata";
 		rockchip,grf = <&grf>;
-		wifi_chip_type = "ap6335";
-		sdio_vref = <3300>;
+		wifi_chip_type = "ap6212";
 
-		WIFI,host_wake_irq = <&gpio4 30 GPIO_ACTIVE_HIGH>;
+		WIFI,host_wake_irq = <&gpio4 RK_PD6 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 };
@@ -565,7 +567,7 @@
 	num-slots = <1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdio0_bus4 &sdio0_cmd &sdio0_clk &sdio0_int>;
-	vmmc-supply = <&vcc_wl>;
+	mmc-pwrseq = <&sdio_pwrseq>;
 	supports-sdio;
 	status = "okay";
 };
@@ -826,9 +828,9 @@
 		};
 	};
 
-	wireless {
-		wifi_reg_on: wifi-reg-on {
-			rockchip,pins = <4 28 RK_FUNC_GPIO &pcfg_pull_none>;
+	sdio-pwrseq {
+		wifi_enable_h: wifi-enable-h {
+			rockchip,pins = <4 RK_PD4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
