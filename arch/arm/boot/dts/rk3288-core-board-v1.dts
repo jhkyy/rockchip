@@ -194,6 +194,19 @@
 		vin-supply = <&vcc_io>;  
 	};
 
+	wireless-bluetooth {
+		compatible = "bluetooth-platdata";
+		clocks = <&rk808 1>;
+		clock-names = "ext_clock";
+		uart_rts_gpios = <&gpio4 RK_PC3 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default", "rts_gpio";
+		pinctrl-0 = <&uart0_rts>;
+		pinctrl-1 = <&uart0_rts_gpio>;
+		BT,power_gpio    = <&gpio4 RK_PD5 GPIO_ACTIVE_HIGH>;
+		BT,wake_host_irq = <&gpio4 RK_PD7 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+
 	wireless-wlan {
 		compatible = "wlan-platdata";
 		rockchip,grf = <&grf>;
@@ -854,12 +867,6 @@
 	sdio-pwrseq {
 		wifi_enable_h: wifi-enable-h {
 			rockchip,pins = <4 RK_PD4 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-	};
-
-	wireless-bluetooth {
-		uart0_gpios: uart0-gpios {
-			rockchip,pins = <4 19 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };
