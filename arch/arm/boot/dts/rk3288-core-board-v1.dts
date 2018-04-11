@@ -627,7 +627,7 @@
 
 &pwm0{
 	status = "okay";
-}
+};
 
 /*
 &pwm0 {
@@ -660,6 +660,10 @@
 };
 
 &uart3 {
+	status = "okay";
+};
+
+&uart4{
 	status = "okay";
 };
 
