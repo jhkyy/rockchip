@@ -54,6 +54,10 @@ Module.symvers
 /System.map
 /Module.markers
 
+
+# boot.img output
+/out/
+
 #
 # Debian directory (make deb-pkg)
 #

@@ -1,0 +1,22 @@
+
+How to make boot.img and update for RK3288
+
+step 1
+
+    ./img_build.sh
+    
+step 2
+
+    typing "ums mmc 0" and Enter in rk3288's uboot cmd line.
+    like:
+    =>ums mmc 0
+    
+step 3
+    
+    sudo ./ums_update.sh
+    
+step 4
+
+    use "ctrl-c" to kill "ums mmc 0" in rk3288's uboot cmd line.
+    typing "boot" and Enter in rk3288's uboot cmd line.
+    now kernel is new.
