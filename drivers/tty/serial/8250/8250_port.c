@@ -2015,8 +2015,8 @@ dont_test_tx_en:
 	if (up->dma) {
 		retval = serial8250_request_dma(up);
 		if (retval) {
-			pr_warn_ratelimited("ttyS%d - failed to request DMA\n",
-					    serial_index(port));
+			//pr_warn_ratelimited("ttyS%d - failed to request DMA\n",
+			//		    serial_index(port));
 			up->dma = NULL;
 		}
 	}
