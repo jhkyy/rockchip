@@ -624,6 +624,11 @@
 	status = "disabled";
 };
 
+
+&pwm0{
+	status = "okay";
+}
+
 /*
 &pwm0 {
 	status = "okay";
