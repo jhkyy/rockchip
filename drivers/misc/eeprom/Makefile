@@ -1,4 +1,5 @@
 obj-$(CONFIG_EEPROM_AT24)	+= at24.o
+obj-$(CONFIG_EEPROM_24AA02UID) += 24aa02uid.o
 obj-$(CONFIG_EEPROM_AT25)	+= at25.o
 obj-$(CONFIG_EEPROM_LEGACY)	+= eeprom.o
 obj-$(CONFIG_EEPROM_MAX6875)	+= max6875.o

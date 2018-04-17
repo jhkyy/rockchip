@@ -27,6 +27,12 @@ config EEPROM_AT24
 	  This driver can also be built as a module.  If so, the module
 	  will be called at24.
 
+config EEPROM_24AA02UID
+	tristate "EEPROM_24AA02UID"
+	depends on I2C && SYSFS
+	help
+		nothing
+
 config EEPROM_AT25
 	tristate "SPI EEPROMs from most vendors"
 	depends on SPI && SYSFS
