@@ -3947,8 +3947,7 @@ static int cif_isp10_s_fmt_mp(
 
 	if (CIF_ISP10_PIX_FMT_IS_JPEG(strm_fmt->frm_fmt.pix_fmt)) {
 		dev->config.jpeg_config.enable = true;
-	}	else if (CIF_ISP10_PIX_FMT_IS_RAW_BAYER
-		(strm_fmt->frm_fmt.pix_fmt)) {
+	}else if (CIF_ISP10_PIX_FMT_IS_RAW_BAYER(strm_fmt->frm_fmt.pix_fmt)) {
 		if ((dev->sp_stream.state == CIF_ISP10_STATE_READY) ||
 			(dev->sp_stream.state == CIF_ISP10_STATE_STREAMING))
 			cif_isp10_pltfrm_pr_warn(dev->dev,

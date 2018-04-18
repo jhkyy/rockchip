@@ -34,7 +34,7 @@ struct reg_array
 // Helper marco
 #define CHECK_RET(expr) \
 	if ((ret = expr) < 0) return ret
-
+/*
 static const struct reg_array reg_array_pll[] = {
 	// Input: 24MHz
 	// Output: 40MHz (17帧配置)
@@ -42,6 +42,17 @@ static const struct reg_array reg_array_pll[] = {
 	{0x302C, 1},	// VT_SYS_CLK_DIV
 	{0x302E, 1},	// PRE_PLL_CLK_DIV
 	{0x3030, 20},	// PLL_MULTIPLIER
+	{0x3036, 12},	// OP_PIX_CLK_DIV
+	{0x3038, 1}	// OP_SYS_CLK_DIV
+};
+*/
+static const struct reg_array reg_array_pll[] = {
+	// Input: 24MHz
+	// Output: 56MHz (22帧配置)
+	{0x302A, 12},	// VT_PIX_CLK_DIV
+	{0x302C, 1},	// VT_SYS_CLK_DIV
+	{0x302E, 1},	// PRE_PLL_CLK_DIV
+	{0x3030, 28},	// PLL_MULTIPLIER
 	{0x3036, 12},	// OP_PIX_CLK_DIV
 	{0x3038, 1}	// OP_SYS_CLK_DIV
 };
@@ -301,9 +312,9 @@ static int ar0230_set_hdr_mode(struct i2c_client *client)
 	CHECK_RET(ar0230_write(client, 0x3004, 0));		// X_ADDR_START
 	CHECK_RET(ar0230_write(client, 0x3006, 1087));		// Y_ADDR_END
 	CHECK_RET(ar0230_write(client, 0x3008, 1927));		// X_ADDR_END
-	CHECK_RET(ar0230_write(client, 0x300A, 0x0450/*AR0230_IMAGE_HEIGHT + 16*/));	// FRAME_LENGTH_LINES
+	CHECK_RET(ar0230_write(client, 0x300A, 0x04e5/*AR0230_IMAGE_HEIGHT + 16*/));	// FRAME_LENGTH_LINES
 	CHECK_RET(ar0230_write(client, 0x300C, 1118));	// LINE_LENGTH_PCK
-	CHECK_RET(ar0230_write(client, 0x3012, 0x0200));			// COARSE_INTEGRATION_TIME
+	CHECK_RET(ar0230_write(client, 0x3012, 0x050));				// COARSE_INTEGRATION_TIME
 	CHECK_RET(ar0230_write(client, 0x30A2, 0x0001));			// X_ODD_INC
 	CHECK_RET(ar0230_write(client, 0x30A6, 0x0001));			// Y_ODD_INC
 	CHECK_RET(ar0230_write(client, 0x30AE, 0x0001));			// X_ODD_INC_CB
@@ -312,9 +323,13 @@ static int ar0230_set_hdr_mode(struct i2c_client *client)
 	CHECK_RET(ar0230_write(client, 0x31AE, 0x0301));			// SERIAL_FORMAT
 	CHECK_RET(ar0230_write(client, 0x301C, 0x0003));			// MODE_SELECT MIRROR_ROW[2] MIRROR_COL[1]
 
+
+	CHECK_RET(ar0230_write(client, 0x3058, 0x00ff));			// blue gain
+	CHECK_RET(ar0230_write(client, 0x305a, 0x00a8));			// red gain
+
 	// HDR Mode 16x Setup
 	{
-		CHECK_RET(ar0230_write(client, 0x3082, 0x0008));	// OPERATION_MODE_CTRL
+		CHECK_RET(ar0230_write(client, 0x3082, 0x0000));	// OPERATION_MODE_CTRL
 
 		// HDR Mode Setup
 		{
@@ -333,14 +348,14 @@ static int ar0230_set_hdr_mode(struct i2c_client *client)
 				CHECK_RET(ar0230_write(client, 0x2440, 0x0004));	// ALTM_CONTROL_DAMPER
 				CHECK_RET(ar0230_write(client, 0x2442, 0x0080));	// ALTM_CONTROL_KEY_K0
 				CHECK_RET(ar0230_write(client, 0x301E, 0x0000));	// DATA_PEDESTAL
-				CHECK_RET(ar0230_write(client, 0x2450, 0x00FF));	// ALTM_OUT_PEDESTAL
+				CHECK_RET(ar0230_write(client, 0x2450, 0x0000));	// ALTM_OUT_PEDESTAL
 				CHECK_RET(ar0230_write(client, 0x320A, 0x0080));	// ADACD_PEDESTAL
 				CHECK_RET(ar0230_write(client, 0x31D0, 0x0000));	// COMPANDING
 				CHECK_RET(ar0230_write(client, 0x2400, 0x0002));	// ALTM_CONTROL
 				CHECK_RET(ar0230_write(client, 0x2410, 0x0005));	// ALTM_POWER_GAIN
 				CHECK_RET(ar0230_write(client, 0x2412, 0x001A));	// ALTM_POWER_OFFSET
 				CHECK_RET(ar0230_write(client, 0x2444, 0x0000));	// ALTM_CONTROL_KEY_K01_LO
-				CHECK_RET(ar0230_write(client, 0x2446, 0x0005));	// ALTM_CONTROL_KEY_K01_HI
+				CHECK_RET(ar0230_write(client, 0x2446, 0x0002));	// ALTM_CONTROL_KEY_K01_HI
 				CHECK_RET(ar0230_write(client, 0x2438, 0x0010));	// ALTM_CONTROL_MIN_FACTOR
 				CHECK_RET(ar0230_write(client, 0x243A, 0x0012));	// ALTM_CONTROL_MAX_FACTOR
 				CHECK_RET(ar0230_write(client, 0x243C, 0xFFFF));	// ALTM_CONTROL_DARK_FLOOR
@@ -371,7 +386,7 @@ static int ar0230_set_hdr_mode(struct i2c_client *client)
 			// HDR Mode High Conversion Gain
 			{
 				// Minimum analog gain for HCG = 1.0x analog Gain
-				CHECK_RET(ar0230_write(client, 0x3060, 0x0000));	// ANALOG_GAIN
+				CHECK_RET(ar0230_write(client, 0x3060, 0x0022));	// ANALOG_GAIN
 
 				CHECK_RET(ar0230_write(client, 0x3096, 0x0780));	// ROW_NOISE_ADJUST_TOP
 				CHECK_RET(ar0230_write(client, 0x3098, 0x0780));	// ROW_NOISE_ADJUST_BTM
@@ -379,7 +394,7 @@ static int ar0230_set_hdr_mode(struct i2c_client *client)
 				// ADACD_High_Conversion_Gain
 				CHECK_RET(AR0230_INIT_FROM_ARRAY(client, reg_array_ADACD_High_Conversion_Gain));
 
-				CHECK_RET(ar0230_write(client, 0x3100, 0x0004));	// AECTRLREG
+				CHECK_RET(ar0230_write(client, 0x3100, 0x0000));	// AECTRLREG
 			}
 
 			CHECK_RET(ar0230_write_bit(client, 0x30BA, 8, 1));	// DIGITAL_CTRL, COMBI_MODE[8] = 1
