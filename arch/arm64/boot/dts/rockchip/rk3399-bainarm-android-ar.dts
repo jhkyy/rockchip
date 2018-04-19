@@ -50,20 +50,6 @@
 	model = "Rockchip RK3399 bainarm ar(Android)";
 	compatible = "rockchip,android", "rockchip,rk3399-bainarm-android-ar", "rockchip,rk3399";
 
-	edp_panel: edp-panel {
-		status = "disabled";
-		compatible = "lg,lp079qx1-sp0v", "panel-simple";
-		backlight = <&backlight>;
-		power-supply = <&vcc3v3_s0>;
-		enable-gpios = <&gpio4 30 GPIO_ACTIVE_HIGH>;
-
-		ports {
-			panel_in_edp: endpoint {
-				remote-endpoint = <&edp_out_panel>;
-			};
-		};
-	};
-
 	test-power {
 		status = "okay";
 	};
@@ -71,77 +57,14 @@
 	rt5651-sound {
 		status = "okay";
 	};
-
-	cx2092x-sound {
-		status = "disabled";
-	};
-
-	cx2072x-sound {
-		status = "disabled";
-	};
-
-	hdmiin-sound {
-		compatible = "rockchip,rockchip-rt5651-tc358749x-sound";
-		rockchip,cpu = <&i2s0>;
-		rockchip,codec = <&rt5651 &rt5651 &tc358749x>;
-		status = "disabled";
-	};
-};
-
-&backlight {
-	status = "disabled";
-	enable-gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
-};
-
-&edp {
-	status = "disabled";
-
-	ports {
-		edp_out: port@1 {
-			reg = <1>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			edp_out_panel: endpoint@0 {
-				reg = <0>;
-				remote-endpoint = <&panel_in_edp>;
-			};
-		};
-	};
-};
-
-&edp_in_vopl {
-	status = "disabled";
 };
 
 &hdmi {
 	status = "okay";
 };
 
-&hdmi_in_vopb {
-	status = "disabled";
-};
-
 &rt5651 {
 	status = "okay";
-};
-
-&cdn_dp {
-	status = "disabled";
-	extcon = <&fusb0>;
-	phys = <&tcphy0_dp>;
-};
-
-&hdmi_dp_sound {
-	status = "disabled";
-};
-
-&dp_in_vopb {
-	status = "disabled";
-};
-
-&i2s2 {
-	status = "disabled";
 };
 
 &isp0 {
@@ -169,40 +92,3 @@
 	assigned-clocks = <&cru DCLK_VOP1_DIV>;
 	assigned-clock-parents = <&cru PLL_VPLL>;
 };
-
-&pcie_phy {
-	status = "okay";
-};
-
-&pcie0 {
-	ep-gpios = <&gpio2 4 GPIO_ACTIVE_HIGH>;
-	num-lanes = <4>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&pcie_clkreqn>;
-	status = "okay";
-};
-
-&route_edp {
-	status = "disabled";
-};
-
-&pinctrl {
-	lcd-panel {
-		lcd_panel_reset: lcd-panel-reset {
-			rockchip,pins = <4 30 RK_FUNC_GPIO &pcfg_pull_up>;
-		};
-	};
-
-	hdmiin {
-		hdmiin_gpios: hdmiin_gpios {
-		rockchip,pins =
-				<2 5 RK_FUNC_GPIO &pcfg_pull_none>,
-				<2 6 RK_FUNC_GPIO &pcfg_pull_none>,
-				<2 7 RK_FUNC_GPIO &pcfg_pull_none>,
-				<2 8 RK_FUNC_GPIO &pcfg_pull_none>,
-				<2 9 RK_FUNC_GPIO &pcfg_pull_none>,
-				<2 12 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-	};
-};
-
