@@ -124,7 +124,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0 0x1>;
-			//enable-method = "psci";
+			enable-method = "psci";
 			clocks = <&cru ARMCLKL>;
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
 		};
@@ -133,7 +133,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0 0x2>;
-			//enable-method = "psci";
+			enable-method = "psci";
 			clocks = <&cru ARMCLKL>;
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
 		};
@@ -142,7 +142,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0 0x3>;
-			//enable-method = "psci";
+			enable-method = "psci";
 			clocks = <&cru ARMCLKL>;
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
 		};
@@ -151,7 +151,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a72", "arm,armv8";
 			reg = <0x0 0x100>;
-			//enable-method = "psci";
+			enable-method = "psci";
 			#cooling-cells = <2>; /* min followed by max */
 			dynamic-power-coefficient = <436>;
 			clocks = <&cru ARMCLKB>;
@@ -162,7 +162,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a72", "arm,armv8";
 			reg = <0x0 0x101>;
-			//enable-method = "psci";
+			enable-method = "psci";
 			clocks = <&cru ARMCLKB>;
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
 		};

@@ -75,7 +75,7 @@
 			opp-microvolt-L3 = <800000>;
 			clock-latency-ns = <40000>;
 		};
-		opp-600000000 {
+/*		opp-600000000 {
 			opp-hz = /bits/ 64 <600000000>;
 			opp-microvolt = <800000>;
 			opp-microvolt-L0 = <800000>;
@@ -120,7 +120,7 @@
 			opp-microvolt-L2 = <1075000>;
 			opp-microvolt-L3 = <1050000>;
 			clock-latency-ns = <40000>;
-		};
+		};*/
 	};
 
 	cluster1_opp: opp-table1 {
@@ -154,7 +154,7 @@
 			opp-microvolt-L2 = <800000>;
 			opp-microvolt-L3 = <800000>;
 			clock-latency-ns = <40000>;
-		};
+		};/*
 		opp-600000000 {
 			opp-hz = /bits/ 64 <600000000>;
 			opp-microvolt = <800000>;
@@ -218,7 +218,7 @@
 			opp-microvolt-L2 = <1150000>;
 			opp-microvolt-L3 = <1125000>;
 			clock-latency-ns = <40000>;
-		};
+		};*/
 	};
 
 	gpu_opp_table: opp-table2 {
@@ -250,7 +250,7 @@
 			opp-microvolt-L1 = <800000>;
 			opp-microvolt-L2 = <800000>;
 			opp-microvolt-L3 = <800000>;
-		};
+		};/*
 		opp-300000000 {
 			opp-hz = /bits/ 64 <300000000>;
 			opp-microvolt = <800000>;
@@ -282,7 +282,7 @@
 			opp-microvolt-L1 = <1075000>;
 			opp-microvolt-L2 = <1050000>;
 			opp-microvolt-L3 = <1025000>;
-		};
+		};*/
 	};
 
 	dmc_opp_table: opp-table3 {
@@ -291,7 +291,7 @@
 		opp-200000000 {
 			opp-hz = /bits/ 64 <200000000>;
 			opp-microvolt = <900000>;
-		};
+		};/*
 		opp-300000000 {
 			opp-hz = /bits/ 64 <300000000>;
 			opp-microvolt = <900000>;
@@ -311,7 +311,7 @@
 		opp-800000000 {
 			opp-hz = /bits/ 64 <800000000>;
 			opp-microvolt = <900000>;
-		};
+		};*/
 	};
 };
 
