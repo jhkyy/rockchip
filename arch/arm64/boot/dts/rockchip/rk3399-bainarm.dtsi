@@ -296,7 +296,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_int_l>;
 		rockchip,system-power-controller;
-		rk818,support_dc_chg = <1>;/*1: dc chg; 0:usb chg*/
+		rk818,support_dc_chg = <0>;/*1: dc chg; 0:usb chg*/
 		wakeup-source;
 		extcon = <&fusb0>;
 		#clock-cells = <1>;
@@ -748,11 +748,7 @@
 
 &tcphy0 {
 	extcon = <&fusb0>;
-	status = "disabled";//wenyi
-};
-
-&tcphy1 {
-	status = "okay";
+	status = "okay";//wenyi
 };
 
 &tsadc {
@@ -760,7 +756,7 @@
 	rockchip,hw-tshut-mode = <1>;
 	/* tshut polarity 0:LOW 1:HIGH */
 	rockchip,hw-tshut-polarity = <1>;
-	status = "disabled";
+	status = "okay";
 };
 
 &u2phy0 {
