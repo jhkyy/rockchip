@@ -1220,6 +1220,11 @@ static const struct drm_display_mode edid_cea_modes[] = {
 		4104, 4400, 0, 2160, 2168, 2178, 2250, 0,
 		DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC),
 	  .vrefresh = 60, .picture_aspect_ratio = HDMI_PICTURE_ASPECT_64_27, },
+	/* 108 - 2048x768p@60Hz 64:27 */
+	{ DRM_MODE("2048x768", DRM_MODE_TYPE_DRIVER, 114520, 2048, 2048+24,
+		2048+24+136, 2048+24+136+160, 0, 768, 768+3, 768+3+6, 768+3+6+29, 0,
+		DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC),
+	  .vrefresh = 60, .picture_aspect_ratio = HDMI_PICTURE_ASPECT_64_27, },
 };
 
 /*
@@ -4571,8 +4576,8 @@ static int add_mode(struct drm_connector *connector)
 	struct drm_display_mode *newmode = NULL;
 	struct drm_device *dev = connector->dev;
 
-        /* 1280*720@60H */
-	newmode = drm_mode_duplicate(dev, &edid_cea_modes[4]);
+    /* 2048*768@60H */
+	newmode = drm_mode_duplicate(dev, &edid_cea_modes[108]);
 
 	if (!newmode)
 	return 0;
