@@ -4566,6 +4566,22 @@ static int add_displayid_detailed_modes(struct drm_connector *connector,
 	return num_modes;
 }
 
+static int add_mode(struct drm_connector *connector)
+{
+	struct drm_display_mode *newmode = NULL;
+	struct drm_device *dev = connector->dev;
+
+        /* 1280*720@60H */
+	newmode = drm_mode_duplicate(dev, &edid_cea_modes[4]);
+
+	if (!newmode)
+	return 0;
+
+	drm_mode_probed_add(connector, newmode);
+
+	return 1;
+}
+
 /**
  * drm_add_edid_modes - add modes from EDID data, if available
  * @connector: connector we're probing
@@ -4583,6 +4599,9 @@ int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid)
 	if (edid == NULL) {
 		return 0;
 	}
+
+	return add_mode(connector);
+
 	if (!drm_edid_is_valid(edid)) {
 		dev_warn(connector->dev->dev, "%s: EDID invalid.\n",
 			 connector->name);
