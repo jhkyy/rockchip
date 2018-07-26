@@ -8,7 +8,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/devfreq.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/err.h>
@@ -19,6 +18,8 @@
 #include <linux/clk.h>
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
+#include <soc/rockchip/pm_domains.h>
+#include <soc/rockchip/rockchip_dmc.h>
 #include <dt-bindings/power/px30-power.h>
 #include <dt-bindings/power/rk3036-power.h>
 #include <dt-bindings/power/rk3128-power.h>
@@ -72,6 +73,8 @@ struct rockchip_pm_domain {
 	struct regmap **qos_regmap;
 	u32 *qos_save_regs[MAX_QOS_REGS_NUM];
 	int num_clks;
+	bool is_ignore_pwr;
+	bool is_qos_saved;
 	struct clk *clks[];
 };
 
@@ -81,12 +84,20 @@ struct rockchip_pmu {
 	const struct rockchip_pmu_info *info;
 	struct mutex mutex; /* mutex lock for pmu */
 	struct genpd_onecell_data genpd_data;
-	struct devfreq *devfreq;
-	struct notifier_block dmc_nb;
 	struct generic_pm_domain *domains[];
 };
 
-static struct rockchip_pmu *dmc_pmu;
+static void rockchip_pmu_lock(struct rockchip_pm_domain *pd)
+{
+	mutex_lock(&pd->pmu->mutex);
+	rockchip_dmcfreq_lock();
+}
+
+static void rockchip_pmu_unlock(struct rockchip_pm_domain *pd)
+{
+	rockchip_dmcfreq_unlock();
+	mutex_unlock(&pd->pmu->mutex);
+}
 
 #define to_rockchip_pd(gpd) container_of(gpd, struct rockchip_pm_domain, genpd)
 
@@ -163,7 +174,7 @@ static int rockchip_pmu_set_idle_request(struct rockchip_pm_domain *pd,
 	unsigned int target_ack;
 	unsigned int val;
 	bool is_idle;
-	int ret;
+	int ret = 0;
 
 	if (pd_info->req_mask == 0)
 		return 0;
@@ -184,21 +195,24 @@ static int rockchip_pmu_set_idle_request(struct rockchip_pm_domain *pd,
 					0, 10000);
 	if (ret) {
 		dev_err(pmu->dev,
-			"failed to get ack on domain '%s', val=0x%x\n",
-			genpd->name, val);
-		return ret;
+			"failed to get ack on domain '%s', target_idle = %d, target_ack = %d, val=0x%x\n",
+			genpd->name, idle, target_ack, val);
+		goto error;
 	}
 
 	ret = readx_poll_timeout_atomic(rockchip_pmu_domain_is_idle, pd,
 					is_idle, is_idle == idle, 0, 10000);
 	if (ret) {
 		dev_err(pmu->dev,
-			"failed to set idle on domain '%s', val=%d\n",
-			genpd->name, is_idle);
-		return ret;
+			"failed to set idle on domain '%s',  target_idle = %d, val=%d\n",
+			genpd->name, idle, is_idle);
+		goto error;
 	}
 
-	return 0;
+	return ret;
+error:
+	panic("panic_on_set_idle set ...\n");
+	return ret;
 }
 
 int rockchip_pmu_idle_request(struct device *dev, bool idle)
@@ -216,9 +230,9 @@ int rockchip_pmu_idle_request(struct device *dev, bool idle)
 	genpd = pd_to_genpd(dev->pm_domain);
 	pd = to_rockchip_pd(genpd);
 
-	mutex_lock(&pd->pmu->mutex);
+	rockchip_pmu_lock(pd);
 	ret = rockchip_pmu_set_idle_request(pd, idle);
-	mutex_unlock(&pd->pmu->mutex);
+	rockchip_pmu_unlock(pd);
 
 	return ret;
 }
@@ -288,9 +302,9 @@ int rockchip_save_qos(struct device *dev)
 	genpd = pd_to_genpd(dev->pm_domain);
 	pd = to_rockchip_pd(genpd);
 
-	mutex_lock(&pd->pmu->mutex);
+	rockchip_pmu_lock(pd);
 	ret = rockchip_pmu_save_qos(pd);
-	mutex_unlock(&pd->pmu->mutex);
+	rockchip_pmu_unlock(pd);
 
 	return ret;
 }
@@ -311,9 +325,9 @@ int rockchip_restore_qos(struct device *dev)
 	genpd = pd_to_genpd(dev->pm_domain);
 	pd = to_rockchip_pd(genpd);
 
-	mutex_lock(&pd->pmu->mutex);
+	rockchip_pmu_lock(pd);
 	ret = rockchip_pmu_restore_qos(pd);
-	mutex_unlock(&pd->pmu->mutex);
+	rockchip_pmu_unlock(pd);
 
 	return ret;
 }
@@ -334,18 +348,19 @@ static bool rockchip_pmu_domain_is_on(struct rockchip_pm_domain *pd)
 	return !(val & pd->info->status_mask);
 }
 
-static void rockchip_do_pmu_set_power_domain(struct rockchip_pm_domain *pd,
-					     bool on)
+static int rockchip_do_pmu_set_power_domain(struct rockchip_pm_domain *pd,
+					    bool on)
 {
 	struct rockchip_pmu *pmu = pd->pmu;
 	struct generic_pm_domain *genpd = &pd->genpd;
 	bool is_on;
+	int ret = 0;
 
 	if (pd->info->pwr_mask == 0)
-		return;
+		return 0;
 	else if (pd->info->pwr_w_mask)
 		regmap_write(pmu->regmap, pmu->info->pwr_offset,
-			     on ? pd->info->pwr_mask :
+			     on ? pd->info->pwr_w_mask :
 			     (pd->info->pwr_mask | pd->info->pwr_w_mask));
 	else
 		regmap_update_bits(pmu->regmap, pmu->info->pwr_offset,
@@ -353,20 +368,27 @@ static void rockchip_do_pmu_set_power_domain(struct rockchip_pm_domain *pd,
 
 	dsb(sy);
 
-	if (readx_poll_timeout_atomic(rockchip_pmu_domain_is_on, pd, is_on,
-				      is_on == on, 0, 10000)) {
+	ret = readx_poll_timeout_atomic(rockchip_pmu_domain_is_on, pd, is_on,
+					is_on == on, 0, 10000);
+	if (ret) {
 		dev_err(pmu->dev,
-			"failed to set domain '%s', val=%d\n",
-			genpd->name, is_on);
-		return;
+			"failed to set domain '%s', target_on= %d, val=%d\n",
+			genpd->name, on, is_on);
+			goto error;
 	}
+	return ret;
+
+error:
+	panic("panic_on_set_domain set ...\n");
+	return ret;
 }
 
 static int rockchip_pd_power(struct rockchip_pm_domain *pd, bool power_on)
 {
-	int i;
+	int i, ret = 0;
+	struct generic_pm_domain *genpd = &pd->genpd;
 
-	mutex_lock(&pd->pmu->mutex);
+	rockchip_pmu_lock(pd);
 
 	if (rockchip_pmu_domain_is_on(pd) != power_on) {
 		for (i = 0; i < pd->num_clks; i++)
@@ -374,31 +396,51 @@ static int rockchip_pd_power(struct rockchip_pm_domain *pd, bool power_on)
 
 		if (!power_on) {
 			rockchip_pmu_save_qos(pd);
+			pd->is_qos_saved = true;
 
 			/* if powering down, idle request to NIU first */
-			rockchip_pmu_set_idle_request(pd, true);
+			ret = rockchip_pmu_set_idle_request(pd, true);
+			if (ret) {
+				dev_err(pd->pmu->dev, "failed to set idle request '%s',\n",
+					genpd->name);
+				goto out;
+			}
 		}
 
-		rockchip_do_pmu_set_power_domain(pd, power_on);
+		ret = rockchip_do_pmu_set_power_domain(pd, power_on);
+		if (ret) {
+			dev_err(pd->pmu->dev, "failed to set power '%s' = %d,\n",
+				genpd->name, power_on);
+			goto out;
+		}
 
 		if (power_on) {
 			/* if powering up, leave idle mode */
-			rockchip_pmu_set_idle_request(pd, false);
+			ret = rockchip_pmu_set_idle_request(pd, false);
+			if (ret) {
+				dev_err(pd->pmu->dev, "failed to set deidle request '%s',\n",
+					genpd->name);
+				goto out;
+			}
 
-			rockchip_pmu_restore_qos(pd);
+			if (pd->is_qos_saved)
+				rockchip_pmu_restore_qos(pd);
 		}
-
+out:
 		for (i = pd->num_clks - 1; i >= 0; i--)
 			clk_disable(pd->clks[i]);
 	}
 
-	mutex_unlock(&pd->pmu->mutex);
-	return 0;
+	rockchip_pmu_unlock(pd);
+	return ret;
 }
 
 static int rockchip_pd_power_on(struct generic_pm_domain *domain)
 {
 	struct rockchip_pm_domain *pd = to_rockchip_pd(domain);
+
+	if (pd->is_ignore_pwr)
+		return 0;
 
 	return rockchip_pd_power(pd, true);
 }
@@ -406,6 +448,9 @@ static int rockchip_pd_power_on(struct generic_pm_domain *domain)
 static int rockchip_pd_power_off(struct generic_pm_domain *domain)
 {
 	struct rockchip_pm_domain *pd = to_rockchip_pd(domain);
+
+	if (pd->is_ignore_pwr)
+		return 0;
 
 	return rockchip_pd_power(pd, false);
 }
@@ -501,6 +546,8 @@ static int rockchip_pm_add_one_domain(struct rockchip_pmu *pmu,
 
 	pd->info = pd_info;
 	pd->pmu = pmu;
+	if (!pd_info->pwr_mask)
+		pd->is_ignore_pwr = true;
 
 	for (i = 0; i < clk_cnt; i++) {
 		clk = of_clk_get(node, i);
@@ -604,9 +651,9 @@ static void rockchip_pm_remove_one_domain(struct rockchip_pm_domain *pd)
 	}
 
 	/* protect the zeroing of pm->num_clks */
-	mutex_lock(&pd->pmu->mutex);
+	rockchip_pmu_lock(pd);
 	pd->num_clks = 0;
-	mutex_unlock(&pd->pmu->mutex);
+	rockchip_pmu_unlock(pd);
 
 	/* devm will free our memory */
 }
@@ -643,6 +690,7 @@ static int rockchip_pm_add_subdomain(struct rockchip_pmu *pmu,
 {
 	struct device_node *np;
 	struct generic_pm_domain *child_domain, *parent_domain;
+	struct rockchip_pm_domain *child_pd, *parent_pd;
 	int error;
 
 	for_each_child_of_node(parent, np) {
@@ -683,6 +731,17 @@ static int rockchip_pm_add_subdomain(struct rockchip_pmu *pmu,
 				parent_domain->name, child_domain->name);
 		}
 
+		/*
+		 * If child_pd doesn't do idle request or power on/off,
+		 * parent_pd may fail to do power on/off, so if parent_pd
+		 * need to power on/off, child_pd can't ignore to do idle
+		 * request and power on/off.
+		 */
+		child_pd = to_rockchip_pd(child_domain);
+		parent_pd = to_rockchip_pd(parent_domain);
+		if (!parent_pd->is_ignore_pwr)
+			child_pd->is_ignore_pwr = false;
+
 		rockchip_pm_add_subdomain(pmu, np);
 	}
 
@@ -693,29 +752,29 @@ err_out:
 	return error;
 }
 
-static int dmc_notify(struct notifier_block *nb, unsigned long event,
-		      void *data)
-{
-	if (event == DEVFREQ_PRECHANGE)
-		mutex_lock(&dmc_pmu->mutex);
-	else if (event == DEVFREQ_POSTCHANGE)
-		mutex_unlock(&dmc_pmu->mutex);
+static void __iomem *pd_base;
 
-	return NOTIFY_OK;
+void rockchip_dump_pmu(void)
+{
+	if (pd_base) {
+		pr_warn("PMU:\n");
+		print_hex_dump(KERN_WARNING, "", DUMP_PREFIX_OFFSET,
+			       32, 4, pd_base,
+			       0x100, false);
+	}
+}
+EXPORT_SYMBOL_GPL(rockchip_dump_pmu);
+
+static int rockchip_pmu_panic(struct notifier_block *this,
+			     unsigned long ev, void *ptr)
+{
+	rockchip_dump_pmu();
+	return NOTIFY_DONE;
 }
 
-int rockchip_pm_register_notify_to_dmc(struct devfreq *devfreq)
-{
-	if (!dmc_pmu)
-		return -ENOMEM;
-
-	dmc_pmu->devfreq = devfreq;
-	dmc_pmu->dmc_nb.notifier_call = dmc_notify;
-	devfreq_register_notifier(dmc_pmu->devfreq, &dmc_pmu->dmc_nb,
-				  DEVFREQ_TRANSITION_NOTIFIER);
-	return 0;
-}
-EXPORT_SYMBOL(rockchip_pm_register_notify_to_dmc);
+static struct notifier_block pmu_panic_block = {
+	.notifier_call = rockchip_pmu_panic,
+};
 
 static int rockchip_pm_domain_probe(struct platform_device *pdev)
 {
@@ -727,6 +786,7 @@ static int rockchip_pm_domain_probe(struct platform_device *pdev)
 	const struct of_device_id *match;
 	const struct rockchip_pmu_info *pmu_info;
 	int error;
+	void __iomem *reg_base;
 
 	if (!np) {
 		dev_err(dev, "device tree node not found\n");
@@ -768,6 +828,14 @@ static int rockchip_pm_domain_probe(struct platform_device *pdev)
 		return PTR_ERR(pmu->regmap);
 	}
 
+	reg_base = of_iomap(parent->of_node, 0);
+	if (!reg_base) {
+		dev_err(dev, "%s: could not map pmu region\n", __func__);
+		return -ENOMEM;
+	}
+
+	pd_base = reg_base;
+
 	/*
 	 * Configure power up and down transition delays for CORE
 	 * and GPU domains.
@@ -806,7 +874,8 @@ static int rockchip_pm_domain_probe(struct platform_device *pdev)
 
 	of_genpd_add_provider_onecell(np, &pmu->genpd_data);
 
-	dmc_pmu = pmu;
+	atomic_notifier_chain_register(&panic_notifier_list,
+				       &pmu_panic_block);
 
 	return 0;
 

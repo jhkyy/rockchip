@@ -30,6 +30,7 @@
 # Invoke gcc, looking for warnings, and causing a failure if there are
 # non-whitelisted warnings.
 
+from __future__ import print_function
 import errno
 import re
 import os
@@ -49,10 +50,16 @@ allowed_warnings = set([
     "memcontrol.c:5337", # mm/memcontrol.c:5337:12: warning: initialization from incompatible pointer type
     "atags_to_fdt.c:98", # arch/arm/boot/compressed/atags_to_fdt.c:98:1: warning: the frame size of 1032 bytes is larger than 1024 bytes
     "drm_edid.c:3506", # drivers/gpu/drm/drm_edid.c:3506:13: warning: 'cea_db_is_hdmi_forum_vsdb' defined but not used
+    # W=1
+    "bounds.c:15", # kernel/bounds.c:15:6: warning: no previous prototype for ‘foo’
+    "cpufeature.h:157", # arch/arm64/include/asm/cpufeature.h:157:68: warning: signed and unsigned type in conditional expression
+    "sched.h:1211", # include/linux/sched.h:1211:1: warning: type qualifiers ignored on function return type
  ])
 
 # Capture the name of the object file, can find it.
 ofile = None
+
+do_exit = False;
 
 warning_re = re.compile(r'''(.*/|)([^/]+\.[a-z]+:\d+):(\d+:)? warning:''')
 def interpret_warning(line):
@@ -60,7 +67,7 @@ def interpret_warning(line):
     line = line.rstrip('\n')
     m = warning_re.match(line)
     if m and m.group(2) not in allowed_warnings:
-        print "error, forbidden warning:", m.group(2)
+        print ("error, forbidden warning:" + m.group(2))
 
         # If there is a warning, remove any object if it exists.
         if ofile:
@@ -68,7 +75,8 @@ def interpret_warning(line):
                 os.remove(ofile)
             except OSError:
                 pass
-        sys.exit(1)
+        global do_exit
+        do_exit = True;
 
 def run_gcc():
     args = sys.argv[1:]
@@ -85,17 +93,19 @@ def run_gcc():
     try:
         proc = subprocess.Popen(args, stderr=subprocess.PIPE)
         for line in proc.stderr:
-            print line,
-            interpret_warning(line)
+            print (line.decode("utf-8"), end="")
+            interpret_warning(line.decode("utf-8"))
+        if do_exit:
+            sys.exit(1)
 
         result = proc.wait()
     except OSError as e:
         result = e.errno
         if result == errno.ENOENT:
-            print args[0] + ':',e.strerror
-            print 'Is your PATH set correctly?'
+            print (args[0] + ':' + e.strerror)
+            print ('Is your PATH set correctly?')
         else:
-            print ' '.join(args), str(e)
+            print (' '.join(args) + str(e))
 
     return result
 

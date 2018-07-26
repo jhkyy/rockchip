@@ -52,6 +52,8 @@ struct rockchip_crtc_funcs {
 	enum drm_mode_status (*mode_valid)(struct drm_crtc *crtc,
 					   const struct drm_display_mode *mode,
 					   int output_type);
+	void (*crtc_close)(struct drm_crtc *crtc);
+	void (*crtc_send_mcu_cmd)(struct drm_crtc *crtc, u32 type, u32 value);
 };
 
 struct drm_rockchip_subdrv {
@@ -131,6 +133,7 @@ struct rockchip_crtc_state {
 	int color_space;
 	int eotf;
 	struct rockchip_hdr_state hdr;
+	struct drm_framebuffer *crtc_primary_fb;
 };
 
 #define to_rockchip_crtc_state(s) \
@@ -150,6 +153,7 @@ struct rockchip_logo {
 	struct sg_table *sgt;
 	struct drm_mm_node mm;
 	dma_addr_t dma_addr;
+	void *kvaddr;
 	phys_addr_t start;
 	phys_addr_t size;
 	size_t iommu_map_size;
@@ -176,6 +180,8 @@ struct rockchip_drm_private {
 	struct drm_property *eotf_prop;
 	struct drm_property *color_space_prop;
 	struct drm_property *global_alpha_prop;
+	struct drm_property *blend_mode_prop;
+	struct drm_property *alpha_scale_prop;
 	void *backlight;
 	struct drm_fb_helper *fbdev_helper;
 	struct drm_gem_object *fbdev_bo;
@@ -197,6 +203,8 @@ struct rockchip_drm_private {
 	struct drm_mm mm;
 	struct rockchip_dclk_pll default_pll;
 	struct rockchip_dclk_pll hdmi_pll;
+	struct devfreq *devfreq;
+	bool dmc_support;
 };
 
 #ifndef MODULE

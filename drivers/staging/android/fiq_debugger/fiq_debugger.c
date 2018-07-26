@@ -35,6 +35,7 @@
 #include <linux/tty_flip.h>
 #include <linux/wakelock.h>
 #include <linux/ptrace.h>
+#include <linux/proc_fs.h>
 
 #ifdef CONFIG_FIQ_DEBUGGER_TRUST_ZONE
 #include <linux/rockchip/rockchip_sip.h>
@@ -866,8 +867,7 @@ static bool fiq_debugger_handle_uart_interrupt(struct fiq_debugger_state *state,
 	int count = 0;
 	bool signal_helper = false;
 
-	if ((this_cpu != state->current_cpu) &&
-	    (cpu_online(state->current_cpu))) {
+	if (this_cpu != state->current_cpu) {
 		if (state->in_fiq)
 			return false;
 
@@ -881,12 +881,9 @@ static bool fiq_debugger_handle_uart_interrupt(struct fiq_debugger_state *state,
 			this_cpu);
 
 		atomic_set(&state->unhandled_fiq_count, 0);
-		fiq_debugger_switch_cpu(state, this_cpu);
+		state->current_cpu = this_cpu;
 		return false;
 	}
-
-	if (this_cpu != state->current_cpu)
-		state->current_cpu = this_cpu;
 
 	state->in_fiq = true;
 
@@ -1209,6 +1206,39 @@ static void fiq_tty_poll_put_char(struct tty_driver *driver, int line, char ch)
 }
 #endif
 
+#ifdef CONFIG_PROC_FS
+static int fiq_tty_proc_show(struct seq_file *m, void *v)
+{
+	struct tty_driver *driver = m->private;
+	struct fiq_debugger_state **states = driver->driver_state;
+	struct fiq_debugger_state *state;
+	int i;
+
+	seq_puts(m, "fiq-debugger driver\n");
+	for (i = 0; i < MAX_FIQ_DEBUGGER_PORTS; i++) {
+		state = states[i];
+
+		seq_printf(m, "%d:", i);
+		seq_printf(m, " state:%d", state->console_enable);
+		seq_putc(m, '\n');
+	}
+	return 0;
+}
+
+static int fiq_tty_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, fiq_tty_proc_show, PDE_DATA(inode));
+}
+
+static const struct file_operations fiq_tty_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= fiq_tty_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+#endif
+
 static const struct tty_port_operations fiq_tty_port_ops;
 
 static const struct tty_operations fiq_tty_driver_ops = {
@@ -1220,6 +1250,9 @@ static const struct tty_operations fiq_tty_driver_ops = {
 	.poll_init = fiq_tty_poll_init,
 	.poll_get_char = fiq_tty_poll_get_char,
 	.poll_put_char = fiq_tty_poll_put_char,
+#endif
+#ifdef CONFIG_PROC_FS
+	.proc_fops = &fiq_tty_proc_fops,
 #endif
 };
 
