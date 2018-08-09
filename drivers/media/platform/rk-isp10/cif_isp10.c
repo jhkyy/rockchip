@@ -3522,7 +3522,7 @@ static void cif_isp10_init_stream(
 
 		ret = cif_isp10_img_src_select_strm_fmt(dev);
 		if (IS_ERR_VALUE(ret)) {
-			dev->mp_stream.updt_cfg = false;
+			dev->sp_stream.updt_cfg = false;
 		} else {
 			frm_fmt.pix_fmt = CIF_YUV420SP;
 			frm_fmt.width =
@@ -4910,6 +4910,9 @@ static int cif_isp10_stop(
 			CIF_ISP10_PM_STATE_SW_STNDBY)))
 			cif_isp10_pltfrm_pr_dbg(dev->dev,
 			"unable to put CIF into standby\n");
+
+		dev->mp_stream.updt_cfg = true;
+		dev->sp_stream.updt_cfg = true;
 	} else if (stop_sp) {
 		if (!dev->config.mi_config.async_updt) {
 			cif_isp10_stop_mi(dev, true, false);
@@ -5687,31 +5690,9 @@ int cif_isp10_streamoff(
 	ret = cif_isp10_stop(dev, streamoff_sp, streamoff_mp);
 	if (IS_ERR_VALUE(ret))
 		goto err;
-	if ((streamoff_sp) &&
-		(dev->sp_stream.state == CIF_ISP10_STATE_READY))
-		dev->sp_stream.state = CIF_ISP10_STATE_INACTIVE;
-	if (streamoff_mp) {
-		dev->config.jpeg_config.enable = false;
-		dev->config.mi_config.raw_enable = false;
-		dev->config.mi_config.mp.output.width = 0;
-		dev->config.mi_config.mp.output.height = 0;
-		dev->config.mi_config.mp.output.pix_fmt =
-			CIF_UNKNOWN_FORMAT;
-		if (dev->mp_stream.state == CIF_ISP10_STATE_READY)
-			dev->mp_stream.state = CIF_ISP10_STATE_INACTIVE;
-	}
-	if (streamoff_dma) {
+
+	if (streamoff_dma)
 		cif_isp10_stop_dma(dev);
-		if (dev->dma_stream.state == CIF_ISP10_STATE_READY)
-			dev->dma_stream.state = CIF_ISP10_STATE_INACTIVE;
-	}
-	if ((dev->dma_stream.state <= CIF_ISP10_STATE_INACTIVE) &&
-		(dev->mp_stream.state <= CIF_ISP10_STATE_INACTIVE) &&
-		(dev->sp_stream.state <= CIF_ISP10_STATE_INACTIVE)) {
-		dev->isp_dev.input_width = 0;
-		dev->isp_dev.input_height = 0;
-		dev->config.isp_config.ism_config.ism_en = false;
-	}
 
 	cif_isp10_pltfrm_pr_dbg(dev->dev,
 		"SP state = %s, MP state = %s, DMA state = %s, # frames received = %d\n",
@@ -5861,6 +5842,9 @@ int cif_isp10_init(
 		dev->config.isp_config.si_enable = false;
 		dev->config.isp_config.ie_config.effect =
 			CIF_ISP10_IE_NONE;
+
+		memset(&dev->config.isp_config.output, 0,
+			sizeof(dev->config.isp_config.output));
 	}
 
 	if (stream_ids & CIF_ISP10_STREAM_SP)

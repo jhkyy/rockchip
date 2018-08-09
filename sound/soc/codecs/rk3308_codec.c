@@ -149,6 +149,7 @@ struct rk3308_codec_priv {
 	u32 i2s_sdis[ADC_LR_GROUP_MAX];
 	u32 to_i2s_grps;
 	u32 delay_loopback_handle_ms;
+	u32 delay_start_play_ms;
 	int which_i2s;
 	int irq;
 	int adc_grp0_using_linein;
@@ -724,7 +725,7 @@ static int rk3308_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	struct rk3308_codec_priv *rk3308 = snd_soc_codec_get_drvdata(codec);
 	unsigned int adc_aif1 = 0, adc_aif2 = 0, dac_aif1 = 0, dac_aif2 = 0;
 	int idx, grp, is_master;
-	int type = ADC_TYPE_NORMAL;
+	int type = ADC_TYPE_ALL;
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBS_CFS:
@@ -1001,6 +1002,9 @@ static int rk3308_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 				rk3308_speaker_ctl(rk3308, 1);
 			else if (rk3308->dac_output == DAC_HPOUT)
 				rk3308_headphone_ctl(rk3308, 1);
+
+			if (rk3308->delay_start_play_ms)
+				msleep(rk3308->delay_start_play_ms);
 #endif
 			for (dgain = 0x7; dgain >= 0x2; dgain--) {
 				/*
@@ -3829,6 +3833,10 @@ static int rk3308_platform_probe(struct platform_device *pdev)
 	rk3308->delay_loopback_handle_ms = LOOPBACK_HANDLE_MS;
 	ret = of_property_read_u32(np, "rockchip,delay-loopback-handle-ms",
 				   &rk3308->delay_loopback_handle_ms);
+
+	rk3308->delay_start_play_ms = 0;
+	ret = of_property_read_u32(np, "rockchip,delay-start-play-ms",
+				   &rk3308->delay_start_play_ms);
 
 	rk3308->loopback_grp = NOT_USED;
 	ret = of_property_read_u32(np, "rockchip,loopback-grp",
