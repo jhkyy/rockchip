@@ -157,34 +157,10 @@
 		vin-supply = <&vcc_sys>;
 	};
 
-	vcc_lcd: vcc-lcd {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc_lcd";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		vin-supply = <&vcc_io>;
-	};
-
-	vccio_rf: vccio-rf {
-		compatible = "regulator-fixed";
-		regulator-name = "vccio_rf";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		vin-supply = <&vcc_io>;
-	};
-
-	vccio_codec: vccio-codec {
-		compatible = "regulator-fixed";
-		regulator-name = "vccio_codec";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		vin-supply = <&vcc_io>;
-	};
-
 	vcc18_dvp: vcc18-dvp {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc18_dvp";
-		gpio = <&gpio1 17 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio0 17 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		pinctrl-names = "default";
 		pinctrl-0 = <&dvp_pwr>;
@@ -234,12 +210,12 @@
 };
 
 &dfi {
-	status = "okay";
+	status = "disabled";
 };
 
 &dmc {
 	center-supply = <&vdd_log>;
-	status = "okay";
+	status = "disabled";
 };
 
 &emmc {
@@ -525,9 +501,9 @@
 		reg = <0x1c>;
 		clocks = <&cru SCLK_I2S0_OUT>;
 		clock-names = "mclk";
-		spk-con-gpio = <&gpio7 15 GPIO_ACTIVE_HIGH>;
+	//	spk-con-gpio = <&gpio7 15 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&i2s0_mclk>, <&spk_stl>;
+		pinctrl-0 = <&i2s0_mclk>;
 	};
 };
 
@@ -858,11 +834,11 @@
 		};
 	};
 
-	audio {
+/*	audio {
 		spk_stl: spk-ctl {
 			rockchip,pins = <7 15 RK_FUNC_GPIO &pcfg_output_high>;
 		 };
-	};
+	};*/
 
 	pmic {
 		pmic_int: pmic-int {
