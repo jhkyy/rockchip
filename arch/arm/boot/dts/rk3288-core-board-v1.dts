@@ -137,15 +137,14 @@
 
 	vdd_log: vdd-log {
 		compatible = "pwm-regulator";
-
-		pwms = <&pwm1 0 25000>;
-		pwm-dutycycle-range = <100 0>;
-
-		regulator-name = "vdd_log";
+		rockchip,pwm_id = <1>;
+		rockchip,pwm_voltage = <1100000>;
+		pwms = <&pwm1 0 25000 1>;
+		regulator-name = "vcc_log";
+		regulator-min-microvolt = <860000>;
+		regulator-max-microvolt = <1360000>;
 		regulator-always-on;
 		regulator-boot-on;
-		regulator-min-microvolt = <925000>;
-		regulator-max-microvolt = <1400000>;
 		vin-supply = <&vcc_sys>;
 		status = "okay";
 	};
@@ -589,6 +588,10 @@
 
 &isp_mmu {
 	status = "okay";
+};
+
+&pwm1 {
+        status = "okay";
 };
 
 &rga {
