@@ -66,6 +66,8 @@ struct rockchip_vad {
 	struct dentry *debugfs_dir;
 	void *buf;
 	bool acodec_cfg;
+	struct snd_soc_dai *cpu_dai;
+	struct snd_pcm_substream *substream;
 };
 
 struct audio_src_addr_map {
@@ -78,6 +80,10 @@ static int rockchip_vad_stop(struct rockchip_vad *vad)
 	unsigned int val;
 	struct vad_buf *vbuf = &vad->vbuf;
 	struct vad_params *params = &vad->params;
+
+	regmap_read(vad->regmap, VAD_CTRL, &val);
+	if ((val & VAD_EN_MASK) == VAD_DISABLE)
+		return 0;
 
 	regmap_update_bits(vad->regmap, VAD_CTRL, VAD_EN_MASK, VAD_DISABLE);
 	regmap_read(vad->regmap, VAD_RAM_END_ADDR, &val);
@@ -315,6 +321,66 @@ bool snd_pcm_vad_attached(struct snd_pcm_substream *substream)
 }
 EXPORT_SYMBOL(snd_pcm_vad_attached);
 
+/**
+ * snd_pcm_vad_memcpy - Copy vad data to dst
+ * @substream: PCM substream instance
+ * @buf: dst buf
+ * @frames:  size in frame
+ *
+ * Result is copied frames for success or errno for fail
+ */
+snd_pcm_sframes_t snd_pcm_vad_memcpy(struct snd_pcm_substream *substream,
+				     void *buf, snd_pcm_uframes_t frames)
+{
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct rockchip_vad *vad = NULL;
+	struct vad_buf *vbuf;
+	snd_pcm_uframes_t avail;
+	int bytes;
+
+	vad = substream_get_drvdata(substream);
+
+	if (!vad)
+		return -EFAULT;
+
+	vbuf = &vad->vbuf;
+
+	avail = snd_pcm_vad_avail(substream);
+	avail = avail > frames ? frames : avail;
+	bytes = frames_to_bytes(runtime, avail);
+
+	if (bytes <= 0)
+		return -EFAULT;
+
+	dev_dbg(vad->dev,
+		"begin: %p, pos: %p, end: %p, size: %d, bytes: %d\n",
+		vbuf->begin, vbuf->pos, vbuf->end, vbuf->size, bytes);
+	if (!vbuf->loop) {
+		memcpy_fromio(buf, vbuf->pos, bytes);
+		vbuf->pos += bytes;
+	} else {
+		if ((vbuf->pos + bytes) <= vbuf->end) {
+			memcpy_fromio(buf, vbuf->pos, bytes);
+			vbuf->pos += bytes;
+		} else {
+			int part1 = vbuf->end - vbuf->pos;
+			int part2 = bytes - part1;
+
+			memcpy_fromio(buf, vbuf->pos, part1);
+			memcpy_fromio(buf + part1, vbuf->begin, part2);
+			vbuf->pos = vbuf->begin + part2;
+		}
+	}
+
+	vbuf->size -= bytes;
+	dev_dbg(vad->dev,
+		"begin: %p, pos: %p, end: %p, size: %d, bytes: %d\n",
+		vbuf->begin, vbuf->pos, vbuf->end, vbuf->size, bytes);
+
+	return avail;
+}
+EXPORT_SYMBOL(snd_pcm_vad_memcpy);
+
 static bool rockchip_vad_writeable_reg(struct device *dev, unsigned int reg)
 {
 	return true;
@@ -471,6 +537,8 @@ static void rockchip_vad_params_fixup(struct snd_pcm_substream *substream,
 	int i;
 
 	cpu_dai = rtd->cpu_dai;
+	vad->cpu_dai = cpu_dai;
+	vad->substream = substream;
 	np = cpu_dai->dev->of_node;
 	if (of_device_is_compatible(np, "rockchip,multi-dais")) {
 		audio_src_dai = rockchip_vad_find_dai(vad->audio_node);
@@ -490,7 +558,7 @@ static int rockchip_vad_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct rockchip_vad *vad = snd_soc_codec_get_drvdata(codec);
-	unsigned int val = 0, mask = 0, frame_bytes;
+	unsigned int val = 0, mask = 0, frame_bytes, buf_time;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		return 0;
@@ -535,7 +603,15 @@ static int rockchip_vad_hw_params(struct snd_pcm_substream *substream,
 	if (vad->buffer_time) {
 		frame_bytes = snd_pcm_format_size(params_format(params),
 						  params_channels(params));
-		val = params_rate(params) * vad->buffer_time / 1000;
+
+		buf_time = VAD_SRAM_BUFFER_END - vad->memphy + 0x8;
+		buf_time *= 1000;
+		buf_time /= (frame_bytes * params_rate(params));
+		if (buf_time < vad->buffer_time)
+			dev_info(vad->dev, "max buffer time: %u ms.\n", buf_time);
+		buf_time = min(buf_time, vad->buffer_time);
+
+		val = params_rate(params) * buf_time / 1000;
 		val *= frame_bytes;
 		val += vad->memphy;
 		val -= 0x8;
@@ -555,18 +631,17 @@ static int rockchip_vad_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int rockchip_vad_enable_cpudai(struct snd_pcm_substream *substream)
+static int rockchip_vad_enable_cpudai(struct rockchip_vad *vad)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai;
+	struct snd_pcm_substream *substream;
 	int ret = 0;
 
-	if (PCM_RUNTIME_CHECK(substream))
-		return -EFAULT;
-	if (!rtd)
-		return -EFAULT;
+	cpu_dai = vad->cpu_dai;
+	substream = vad->substream;
 
-	cpu_dai = rtd->cpu_dai;
+	if (!cpu_dai || !substream)
+		return 0;
 
 	pm_runtime_get_sync(cpu_dai->dev);
 
@@ -587,21 +662,6 @@ static int rockchip_vad_pcm_startup(struct snd_pcm_substream *substream,
 	vad_substream = substream;
 
 	return 0;
-}
-
-static void rockchip_vad_pcm_shutdown(struct snd_pcm_substream *substream,
-				      struct snd_soc_dai *dai)
-{
-	struct snd_soc_codec *codec = dai->codec;
-	struct rockchip_vad *vad = snd_soc_codec_get_drvdata(codec);
-
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		return;
-
-	rockchip_vad_enable_cpudai(substream);
-	rockchip_vad_setup(vad);
-
-	vad_substream = NULL;
 }
 
 static int rockchip_vad_trigger(struct snd_pcm_substream *substream, int cmd,
@@ -631,7 +691,6 @@ static int rockchip_vad_trigger(struct snd_pcm_substream *substream, int cmd,
 
 static struct snd_soc_dai_ops rockchip_vad_dai_ops = {
 	.hw_params = rockchip_vad_hw_params,
-	.shutdown = rockchip_vad_pcm_shutdown,
 	.startup = rockchip_vad_pcm_startup,
 	.trigger = rockchip_vad_trigger,
 };
@@ -731,6 +790,19 @@ static void rockchip_vad_init(struct rockchip_vad *vad)
 
 	regmap_update_bits(vad->regmap, VAD_CTRL, mask, val);
 }
+
+static int rockchip_vad_suspend(struct device *dev)
+{
+	struct rockchip_vad *vad = dev_get_drvdata(dev);
+
+	rockchip_vad_enable_cpudai(vad);
+	rockchip_vad_setup(vad);
+	return 0;
+}
+
+static const struct dev_pm_ops rockchip_vad_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(rockchip_vad_suspend, NULL)
+};
 
 static int rockchip_vad_probe(struct platform_device *pdev)
 {
@@ -841,6 +913,7 @@ static struct platform_driver rockchip_vad_driver = {
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = of_match_ptr(rockchip_vad_match),
+		.pm = &rockchip_vad_pm_ops,
 	},
 };
 module_platform_driver(rockchip_vad_driver);

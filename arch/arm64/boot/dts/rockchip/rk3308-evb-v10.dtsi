@@ -12,7 +12,7 @@
 	compatible = "rockchip,rk3308-evb", "rockchip,rk3308";
 
 	chosen {
-		bootargs = "earlycon=uart8250,mmio32,0xff0c0000 swiotlb=1 console=ttyFIQ0 root=PARTUUID=614e0000-0000 rootfstype=squashfs rootwait";
+		bootargs = "earlycon=uart8250,mmio32,0xff0c0000 swiotlb=1 console=ttyFIQ0 root=PARTUUID=614e0000-0000 rootfstype=squashfs rootwait snd_aloop.index=7";
 	};
 
 	adc-keys0 {
@@ -120,8 +120,6 @@
 		rockchip,codec = <&dummy_codec>;
 		rockchip,format = "dsp_b";
 		rockchip,bitclock-inversion = <0>;
-		rockchip,bitclock-master = <&dummy_codec>;
-		rockchip,frame-master = <&dummy_codec>;
 		rockchip,wait-card-locked = <0>;
 	};
 
