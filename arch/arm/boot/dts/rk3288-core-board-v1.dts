@@ -158,16 +158,15 @@
 	};
 
 	vcc18_dvp: vcc18-dvp {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc18_dvp";
-		gpio = <&gpio0 17 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
-		pinctrl-names = "default";
-		pinctrl-0 = <&dvp_pwr>;
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-		vin-supply = <&vcc_io>;
-	};
+                compatible = "regulator-fixed";
+                regulator-name = "vcc18_dvp";
+                regulator-min-microvolt = <1800000>;
+                regulator-max-microvolt = <1800000>;
+                gpio = <&gpio0 RK_PC1 GPIO_ACTIVE_HIGH>;
+                enable-active-high;
+                regulator-always-on;
+                vin-supply = <&vcc_io>;
+        };
 
 	vccio_flash: vccio-flash {
  		compatible = "regulator-fixed";
@@ -523,6 +522,9 @@
 		pinctrl-names = "rockchip,camera_default", "rockchip,camera_sleep";
 		pinctrl-0 = <&isp_dvp_pins>;
 		pinctrl-1 = <&isp_dvp_sleep>;
+
+		rockchip,pd-gpio = <&gpio2 15 GPIO_ACTIVE_LOW>;
+               // rockchip,pwr-gpio = <&gpio0 17 GPIO_ACTIVE_HIGH>;
 
 		rockchip,camera-module-mclk-name = "clk_cif_out";
 		rockchip,camera-module-facing = "back";
