@@ -30,8 +30,8 @@
 #define ADV_CAMERA_MODULE_REG_TYPE_TIMEOUT PLTFRM_CAMERA_MODULE_REG_TYPE_TIMEOUT
 #define adv_camera_module_csi_config
 #define adv_camera_module_reg pltfrm_camera_module_reg
-#define ADV_FLIP_BIT_MASK					(1 << PLTFRM_CAMERA_MODULE_FLIP_BIT)
-#define ADV_MIRROR_BIT_MASK					(1 << PLTFRM_CAMERA_MODULE_MIRROR_BIT)
+#define ADV_FLIP_BIT_MASK					0x2
+#define ADV_MIRROR_BIT_MASK					0x1
 
 #define ADV_CAMERA_MODULE_CTRL_UPDT_GAIN			0x01
 #define ADV_CAMERA_MODULE_CTRL_UPDT_EXP_TIME			0x02
@@ -41,7 +41,6 @@
 #define ADV_CAMERA_MODULE_CTRL_UPDT_AUTO_EXP			0x20
 #define ADV_CAMERA_MODULE_CTRL_UPDT_FOCUS_ABSOLUTE		0x40
 #define ADV_CAMERA_MODULE_CTRL_UPDT_PRESET_WB			0x80
-#define ADV_CAMERA_MODULE_CTRL_UPDT_VTS_VALUE			0x100
 
 enum adv_camera_module_state {
 	ADV_CAMERA_MODULE_POWER_OFF = 0,
@@ -90,8 +89,7 @@ struct adv_camera_module_config {
 	struct adv_camera_module_timings timings;
 	bool soft_reset;
 	bool ignore_measurement_check;
-	u8 max_exp_gain_h;
-	u8 max_exp_gain_l;
+
 	struct pltfrm_cam_itf itf_cfg;
 };
 
@@ -102,7 +100,6 @@ struct adv_camera_module_exp_config {
 	u16 gain_percent;
 	bool auto_gain;
 	enum v4l2_flash_led_mode flash_mode;
-	u32 vts_value;
 };
 
 struct adv_camera_module_wb_config {
@@ -157,8 +154,7 @@ struct adv_camera_module_custom_config {
 	int (*g_ctrl)(struct adv_camera_module *cam_mod, u32 ctrl_id);
 	int (*g_timings)(struct adv_camera_module *cam_mod,
 		struct adv_camera_module_timings *timings);
-	int (*s_vts)(struct adv_camera_module *cam_mod,
-		u32 vts);
+	int (*g_exposure_valid_frame)(struct adv_camera_module *cam_mod);
 	int (*s_ext_ctrls)(struct adv_camera_module *cam_mod,
 		struct adv_camera_module_ext_ctrls *ctrls);
 	int (*set_flip)(
@@ -170,7 +166,6 @@ struct adv_camera_module_custom_config {
 	struct adv_camera_module_config *configs;
 	u32 num_configs;
 	u32 power_up_delays_ms[3];
-	unsigned short exposure_valid_frame[2];
 	void *priv;
 };
 
@@ -202,11 +197,9 @@ struct adv_camera_module {
 	bool frm_intrvl_valid;
 	bool hflip;
 	bool vflip;
-	bool flip_flg;
 	u32 rotation;
 	void *pltfm_data;
 	bool inited;
-	struct mutex lock;
 };
 
 #define adv_camera_module_pr_info(cam_mod, fmt, arg...) \
@@ -247,10 +240,6 @@ int adv_camera_module_g_fmt(struct v4l2_subdev *sd,
 	struct v4l2_subdev_format *format);
 
 int adv_camera_module_s_frame_interval(
-	struct v4l2_subdev *sd,
-	struct v4l2_subdev_frame_interval *interval);
-
-int adv_camera_module_g_frame_interval(
 	struct v4l2_subdev *sd,
 	struct v4l2_subdev_frame_interval *interval);
 

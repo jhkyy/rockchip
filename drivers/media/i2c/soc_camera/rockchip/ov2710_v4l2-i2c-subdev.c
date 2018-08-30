@@ -236,8 +236,6 @@ static struct ov_camera_module_config ov2710_configs[] = {
 			sizeof(ov2710_init_tab_1920_1080_30fps) /
 			sizeof(ov2710_init_tab_1920_1080_30fps[0]),
 		.v_blanking_time_us = 3078,
-		.max_exp_gain_h = 16,
-		.max_exp_gain_l = 0,
 		.ignore_measurement_check = 1,
 		PLTFRM_CAM_ITF_MIPI_CFG(0, 1, 800, 24000000)
 	}
@@ -327,11 +325,17 @@ static int OV2710_auto_adjust_fps(struct ov_camera_module *cam_mod,
 	int ret;
 	u32 vts;
 
-	if ((exp_time + OV2710_COARSE_INTG_TIME_MAX_MARGIN)
+	if ((cam_mod->exp_config.exp_time + OV2710_COARSE_INTG_TIME_MAX_MARGIN)
 		> cam_mod->vts_min)
-		vts = exp_time + OV2710_COARSE_INTG_TIME_MAX_MARGIN;
+		vts = cam_mod->exp_config.exp_time +
+			OV2710_COARSE_INTG_TIME_MAX_MARGIN;
 	else
 		vts = cam_mod->vts_min;
+
+	/*
+	 * if (cam_mod->fps_ctrl > 0 && cam_mod->fps_ctrl < 100)
+	 * vts = vts * 100 / cam_mod->fps_ctrl;
+	 */
 
 	if (vts > 0xfff)
 		vts = 0xfff;
@@ -345,43 +349,14 @@ static int OV2710_auto_adjust_fps(struct ov_camera_module *cam_mod,
 		OV2710_TIMING_VTS_HIGH_REG,
 		(vts >> 8) & 0x0F);
 
-	if (IS_ERR_VALUE(ret)) {
+	if (IS_ERR_VALUE(ret))
 		ov_camera_module_pr_err(cam_mod,
 				"failed with error (%d)\n", ret);
-	} else {
-		ov_camera_module_pr_info(cam_mod,
+	else
+		ov_camera_module_pr_debug(cam_mod,
 			"updated vts = 0x%x,vts_min=0x%x\n",
 			vts, cam_mod->vts_min);
-		cam_mod->vts_cur = vts;
-	}
 
-	return ret;
-}
-
-static int ov2710_set_vts(struct ov_camera_module *cam_mod,
-	u32 vts)
-{
-	int ret = 0;
-
-	if (vts < cam_mod->vts_min)
-		return ret;
-
-	if (vts > 0xfff)
-		vts = 0xfff;
-
-	ret = ov_camera_module_write_reg(cam_mod,
-		OV2710_TIMING_VTS_LOW_REG,
-		vts & 0xFF);
-	ret |= ov_camera_module_write_reg(cam_mod,
-		OV2710_TIMING_VTS_HIGH_REG,
-		(vts >> 8) & 0x0F);
-
-	if (IS_ERR_VALUE(ret)) {
-		ov_camera_module_pr_err(cam_mod, "failed with error (%d)\n", ret);
-	} else {
-		ov_camera_module_pr_info(cam_mod, "updated vts=%d,vts_min=%d\n", vts, cam_mod->vts_min);
-		cam_mod->vts_cur = vts;
-	}
 	return ret;
 }
 
@@ -407,7 +382,6 @@ static int ov2710_write_aec(struct ov_camera_module *cam_mod)
 
 		a_gain = a_gain * cam_mod->exp_config.gain_percent / 100;
 
-		mutex_lock(&cam_mod->lock);
 		if (cam_mod->state == OV_CAMERA_MODULE_STREAMING)
 			ret = ov_camera_module_write_reg(cam_mod,
 				OV2710_AEC_GROUP_UPDATE_ADDRESS,
@@ -430,8 +404,6 @@ static int ov2710_write_aec(struct ov_camera_module *cam_mod)
 		ret |= ov_camera_module_write_reg(cam_mod,
 			OV2710_AEC_PK_LONG_EXPO_1ST_REG,
 			OV2710_FETCH_1ST_BYTE_EXP(exp_time));
-		if (!cam_mod->auto_adjust_fps)
-			ret |= ov2710_set_vts(cam_mod, cam_mod->exp_config.vts_value);
 		if (cam_mod->state == OV_CAMERA_MODULE_STREAMING) {
 			ret = ov_camera_module_write_reg(cam_mod,
 				OV2710_AEC_GROUP_UPDATE_ADDRESS,
@@ -440,7 +412,6 @@ static int ov2710_write_aec(struct ov_camera_module *cam_mod)
 				OV2710_AEC_GROUP_UPDATE_ADDRESS,
 				OV2710_AEC_GROUP_UPDATE_END_LAUNCH);
 		}
-		mutex_unlock(&cam_mod->lock);
 	}
 
 	if (IS_ERR_VALUE(ret))
@@ -657,7 +628,6 @@ static int ov2710_g_timings(struct ov_camera_module *cam_mod,
 		cam_mod->active_config->frm_intrvl.interval.denominator *
 		vts * timings->line_length_pck;
 
-	timings->frame_length_lines = vts;
 	return ret;
 err:
 	ov_camera_module_pr_err(cam_mod,
@@ -710,8 +680,14 @@ static int ov2710_s_ext_ctrls(struct ov_camera_module *cam_mod,
 {
 	int ret = 0;
 
-	if ((ctrls->ctrls[0].id == V4L2_CID_GAIN ||
-		ctrls->ctrls[0].id == V4L2_CID_EXPOSURE))
+	/* Handles only exposure and gain together special case. */
+	if (ctrls->count == 1)
+		ret = ov2710_s_ctrl(cam_mod, ctrls->ctrls[0].id);
+	else if ((ctrls->count == 3) &&
+		(ctrls->ctrls[0].id == V4L2_CID_GAIN ||
+		ctrls->ctrls[0].id == V4L2_CID_EXPOSURE ||
+		ctrls->ctrls[1].id == V4L2_CID_GAIN ||
+		ctrls->ctrls[1].id == V4L2_CID_EXPOSURE))
 		ret = ov2710_write_aec(cam_mod);
 	else
 		ret = -EINVAL;
@@ -736,12 +712,9 @@ static int ov2710_start_streaming(struct ov_camera_module *cam_mod)
 	if (IS_ERR_VALUE(ret))
 		goto err;
 	ov_camera_module_pr_debug(cam_mod, "=====streaming on ===\n");
-
-	mutex_lock(&cam_mod->lock);
 	ret = ov_camera_module_write_reg(cam_mod, 0x3008, 0x02);
 	ret |= ov_camera_module_write_reg(cam_mod, 0x4201, 0x00);
 	ret |= ov_camera_module_write_reg(cam_mod, 0x4202, 0x00);
-	mutex_unlock(&cam_mod->lock);
 
 	if (IS_ERR_VALUE(ret))
 		goto err;
@@ -760,11 +733,9 @@ static int ov2710_stop_streaming(struct ov_camera_module *cam_mod)
 	int ret = 0;
 
 	ov_camera_module_pr_debug(cam_mod, "\n");
-	mutex_lock(&cam_mod->lock);
 	ret = ov_camera_module_write_reg(cam_mod, 0x3008, 0x42);
 	ret |= ov_camera_module_write_reg(cam_mod, 0x4201, 0x00);
 	ret |= ov_camera_module_write_reg(cam_mod, 0x4202, 0x0f);
-	mutex_unlock(&cam_mod->lock);
 
 	if (IS_ERR_VALUE(ret))
 		goto err;
@@ -848,7 +819,6 @@ static struct v4l2_subdev_core_ops ov2710_camera_module_core_ops = {
 
 static struct v4l2_subdev_video_ops ov2710_camera_module_video_ops = {
 	.s_frame_interval = ov_camera_module_s_frame_interval,
-	.g_frame_interval = ov_camera_module_g_frame_interval,
 	.s_stream = ov_camera_module_s_stream
 };
 
@@ -875,16 +845,9 @@ static struct ov_camera_module_custom_config ov2710_custom_config = {
 	.g_timings = ov2710_g_timings,
 	.set_flip = ov2710_set_flip,
 	.check_camera_id = ov2710_check_camera_id,
-	.s_vts = OV2710_auto_adjust_fps,
 	.configs = ov2710_configs,
 	.num_configs = ARRAY_SIZE(ov2710_configs),
-	.power_up_delays_ms = {5, 30, 30},
-	/*
-	*0: Exposure time valid fileds;
-	*1: Exposure gain valid fileds;
-	*(2 fileds == 1 frames)
-	*/
-	.exposure_valid_frame = {4, 2}
+	.power_up_delays_ms = {5, 30, 30}
 };
 
 static int ov2710_probe(
@@ -897,10 +860,8 @@ static int ov2710_probe(
 	v4l2_i2c_subdev_init(&ov2710.sd, client,
 				&ov2710_camera_module_ops);
 
-	ov2710.sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	ov2710.custom = ov2710_custom_config;
 
-	mutex_init(&ov2710.lock);
 	dev_info(&client->dev, "probing successful\n");
 	return 0;
 }
@@ -917,7 +878,6 @@ static int ov2710_remove(
 	if (!client->adapter)
 		return -ENODEV;	/* our client isn't attached */
 
-	mutex_destroy(&cam_mod->lock);
 	ov_camera_module_release(cam_mod);
 
 	dev_info(&client->dev, "removed\n");
