@@ -80,6 +80,21 @@ static int rtl8211e_config_intr(struct phy_device *phydev)
 	return err;
 }
 
+static int rtl8211e_config_init(struct phy_device *phydev)
+{
+       printk("[ADV]---rtl8211e_config_init \n");
+       phy_write(phydev, 0x1f, 0x0007);
+       phy_write(phydev, 0x1e, 0x002c);
+       phy_write(phydev, 0x1a, 0x0010);
+       phy_write(phydev, 0x1c, 0x0427);
+       phy_write(phydev, 0x1f, 0x0000);
+       phy_write(phydev, 0x1f, 0x0005);
+       phy_write(phydev, 0x05, 0x8b82);
+       phy_write(phydev, 0x06, 0x052b);
+       phy_write(phydev, 0x1f, 0x0000);
+       return 0;
+}
+
 static int rtl8211f_config_intr(struct phy_device *phydev)
 {
 	int err;
@@ -156,6 +171,7 @@ static struct phy_driver realtek_drvs[] = {
 		.features	= PHY_GBIT_FEATURES,
 		.flags		= PHY_HAS_INTERRUPT,
 		.config_aneg	= &genphy_config_aneg,
+		.config_init    = &rtl8211e_config_init,
 		.read_status	= &genphy_read_status,
 		.ack_interrupt	= &rtl821x_ack_interrupt,
 		.config_intr	= &rtl8211e_config_intr,
