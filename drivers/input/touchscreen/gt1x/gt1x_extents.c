@@ -55,7 +55,7 @@ typedef struct {
 #define CHKBITS_16          16
 #define CHKBITS_8           8
 
-int gesture_enabled;    /* module switch */
+int gesture_enabled = 1;    /* module switch */
 DOZE_T gesture_doze_status = DOZE_DISABLED; /* doze status */
 
 static u8 gestures_flag[32]; /* gesture flag, every bit stands for a gesture */
@@ -893,6 +893,7 @@ s32 gt1x_init_node(void)
 	struct proc_dir_entry *proc_entry = NULL;
 	mutex_init(&gesture_data_mutex);
 	memset(gestures_flag, 0, sizeof(gestures_flag));
+	SETBIT(gestures_flag, (u8) 0xcc);
 	memset((u8 *) &gesture_data, 0, sizeof(st_gesture_data));
 
 	proc_entry = proc_create(GESTURE_NODE, 0755, NULL, &gt1x_fops);

@@ -51,6 +51,19 @@ struct gt1x_version_info gt1x_version = {
 
 #if GTP_HAVE_TOUCH_KEY
 const u16 gt1x_touch_key_array[] = GTP_KEY_TAB;
+struct key_map_t {
+	int x;
+	int y;
+};
+#define KEY_RANGE 40
+static struct key_map_t virtual_key_array[] = {
+	{760, 75},
+	{760, 360},
+	{760, 645},
+	{760, 930},
+	{760, 1215},
+};
+
 #elif TPD_HAVE_BUTTON
 struct key_map_t {
 	int x;
@@ -70,8 +83,8 @@ volatile int gt1x_rawdiff_mode;
 u8 gt1x_wakeup_level;
 u8 gt1x_init_failed;
 u8 gt1x_int_type;
-u32 gt1x_abs_x_max;
-u32 gt1x_abs_y_max;
+u32 gt1x_abs_x_max = 720;
+u32 gt1x_abs_y_max = 1280;
 int gt1x_halt;
 
 #if GTP_DEBUG_NODE
@@ -638,7 +651,9 @@ s32 gt1x_init_panel(void)
 		gt1x_abs_y_max = (gt1x_config[RESOLUTION_LOC + 3] << 8) + gt1x_config[RESOLUTION_LOC + 2];
 		gt1x_int_type = (gt1x_config[TRIGGER_LOC]) & 0x03;
 		gt1x_wakeup_level = !(gt1x_config[MODULE_SWITCH3_LOC] & 0x20);
-	} else {
+	} 
+#if 0
+	else {
 		gt1x_config[RESOLUTION_LOC] = (u8) gt1x_abs_x_max;
 		gt1x_config[RESOLUTION_LOC + 1] = (u8) (gt1x_abs_x_max >> 8);
 		gt1x_config[RESOLUTION_LOC + 2] = (u8) gt1x_abs_y_max;
@@ -646,7 +661,7 @@ s32 gt1x_init_panel(void)
 		set_reg_bit(gt1x_config[MODULE_SWITCH3_LOC], 5, !gt1x_wakeup_level);
 		gt1x_config[TRIGGER_LOC] = (gt1x_config[TRIGGER_LOC] & 0xFC) | gt1x_int_type;
 	}
-
+#endif
 	GTP_INFO("X_MAX=%d,Y_MAX=%d,TRIGGER=0x%02x,WAKEUP_LEVEL=%d", gt1x_abs_x_max, gt1x_abs_y_max, gt1x_int_type, gt1x_wakeup_level);
 
 	gt1x_cfg_length = cfg_len;
@@ -1107,6 +1122,28 @@ s32 gt1x_request_event_handler(void)
 	return 0;
 }
 
+void gt1x_key_down(struct input_dev *dev, s32 x, s32 y)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(virtual_key_array); i++) {
+		if ((x > virtual_key_array[i].x - KEY_RANGE) &&
+		    (x < virtual_key_array[i].x + KEY_RANGE) &&
+		    (y > virtual_key_array[i].y - KEY_RANGE) &&
+		    (y < virtual_key_array[i].y + KEY_RANGE))
+			input_report_key(dev, gt1x_touch_key_array[i], 1);
+	}
+}
+
+void gt1x_key_up(struct input_dev *dev)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(virtual_key_array); i++) {
+			input_report_key(dev, gt1x_touch_key_array[i], 0);
+	}
+}
+
 /**
  * gt1x_touch_event_handler - handle touch event
  * (pen event, key event, finger touch envent)
@@ -1153,7 +1190,9 @@ s32 gt1x_touch_event_handler(u8 *data, struct input_dev *dev, struct input_dev *
 	/* cacl checksum */
 	for (i = 0; i < 1 + 8 * touch_num + 2; i++) {
 		check_sum += touch_data[i];
+		printk("data[%d]=%x ", i, touch_data[i]);
 	}
+	printk("\n");
 	if (check_sum) { /* checksum error*/
 		ret = gt1x_i2c_read(GTP_READ_COOR_ADDR, touch_data, 3 + 8 * touch_num);
 		if (ret) {
@@ -1271,7 +1310,10 @@ s32 gt1x_touch_event_handler(u8 *data, struct input_dev *dev, struct input_dev *
 				input_y = GTP_WARP_Y(gt1x_abs_y_max, input_y);
 
 				GTP_DEBUG("(%d)(%d,%d)[%d]", id, input_x, input_y, input_w);
-				gt1x_touch_down(input_x, input_y, input_w, i);
+				if (input_x > gt1x_abs_x_max || input_y > gt1x_abs_y_max)
+					gt1x_key_down(dev, input_x, input_y);
+				else
+					gt1x_touch_down(input_x, input_y, input_w, i);
 				if (report_num++ < touch_num) {
 					coor_data += 8;
 					id = coor_data[0] & 0x0F;
@@ -1294,6 +1336,7 @@ s32 gt1x_touch_event_handler(u8 *data, struct input_dev *dev, struct input_dev *
 		}
 #else
 		gt1x_touch_up(0);
+		gt1x_key_up(dev);
 #endif
 		GTP_DEBUG("Released Touch.");
 		pre_index = 0;
