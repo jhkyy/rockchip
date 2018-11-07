@@ -154,7 +154,7 @@ int gesture_enter_doze(void)
 s32 gesture_event_handler(struct input_dev *dev)
 {
 	u8 doze_buf[4] = { 0 }, ges_type;
-	static int err_flag1, err_flag2;
+	static int err_flag1;//, err_flag2;
 	int len, extra_len, need_chk;
 	unsigned int key_code;
 	s32 ret = 0;
@@ -240,7 +240,7 @@ s32 gesture_event_handler(struct input_dev *dev)
 		GTP_INFO("Gesture[0x%02X] has been disabled.", doze_buf[0]);
 		doze_buf[0] = 0x00;
 		gt1x_i2c_write(GTP_REG_WAKEUP_GESTURE, doze_buf, 1);
-		gesture_enter_doze();
+//		gesture_enter_doze();
 		return 0;
 	}
 
@@ -260,7 +260,7 @@ s32 gesture_event_handler(struct input_dev *dev)
 			GTP_ERROR("Read gesture data failed.");
 			return 0;
 		}
-
+#if 0
 		if (likely(need_chk)) {
 			bool val = calc_checksum(ges_data,
 					len * 4 + 2, CHKBITS_16);
@@ -278,6 +278,7 @@ s32 gesture_event_handler(struct input_dev *dev)
 
 			err_flag2 = 0;
 		}
+#endif
 
 		mutex_lock(&gesture_data_mutex);
 		memcpy(&gesture_data.data[4], ges_data, len * 4);

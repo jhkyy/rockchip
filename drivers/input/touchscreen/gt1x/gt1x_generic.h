@@ -93,9 +93,9 @@
 #define GTP_ESD_PROTECT       0	/* esd-protection module (with a cycle of 2 seconds) */
 #define GTP_CHARGER_SWITCH    0
 
-#define GTP_DEBUG_ON          1
-#define GTP_DEBUG_ARRAY_ON    1
-#define GTP_DEBUG_FUNC_ON     1
+#define GTP_DEBUG_ON          0
+#define GTP_DEBUG_ARRAY_ON    0
+#define GTP_DEBUG_FUNC_ON     0
 
 /***************************PART2:TODO define**********************************/
 /* Normal Configs
