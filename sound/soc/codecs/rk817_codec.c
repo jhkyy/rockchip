@@ -87,8 +87,10 @@ struct rk817_codec_priv {
 	long int playback_path;
 	long int capture_path;
 
+	struct gpio_desc *stby_ctl_gpio;
 	struct gpio_desc *spk_ctl_gpio;
 	struct gpio_desc *hp_ctl_gpio;
+	int stby_mute_delay;
 	int spk_mute_delay;
 	int hp_mute_delay;
 };
@@ -232,6 +234,7 @@ static int rk817_codec_ctl_gpio(struct rk817_codec_priv *rk817,
 {
 	if ((gpio & CODEC_SET_SPK) &&
 	    rk817->spk_ctl_gpio) {
+		gpiod_set_value(rk817->stby_ctl_gpio, level);
 		gpiod_set_value(rk817->spk_ctl_gpio, level);
 		DBG("%s set spk clt %d\n", __func__, level);
 		msleep(rk817->spk_mute_delay);
@@ -239,6 +242,7 @@ static int rk817_codec_ctl_gpio(struct rk817_codec_priv *rk817,
 
 	if ((gpio & CODEC_SET_HP) &&
 	    rk817->hp_ctl_gpio) {
+		gpiod_set_value(rk817->stby_ctl_gpio, level);
 		gpiod_set_value(rk817->hp_ctl_gpio, level);
 		DBG("%s set hp clt %d\n", __func__, level);
 		msleep(rk817->hp_mute_delay);
@@ -513,9 +517,10 @@ static int rk817_playback_path_put(struct snd_kcontrol *kcontrol,
 				rk817_codec_power_down(codec, RK817_CODEC_ALL);
 		}
 		break;
-	case RCV:
-	case SPK_PATH:
-	case RING_SPK:
+	case HP_PATH:
+	case HP_NO_MIC:
+	case RING_HP:
+	case RING_HP_NO_MIC:
 		if (pre_path == OFF)
 			rk817_codec_power_up(codec, RK817_CODEC_PLAYBACK);
 		if (!rk817->use_ext_amplifier) {
@@ -544,10 +549,9 @@ static int rk817_playback_path_put(struct snd_kcontrol *kcontrol,
 		snd_soc_write(codec, RK817_CODEC_DDAC_VOLL, rk817->spk_volume);
 		snd_soc_write(codec, RK817_CODEC_DDAC_VOLR, rk817->spk_volume);
 		break;
-	case HP_PATH:
-	case HP_NO_MIC:
-	case RING_HP:
-	case RING_HP_NO_MIC:
+	case RCV:
+	case SPK_PATH:
+	case RING_SPK:
 		if (pre_path == OFF)
 			rk817_codec_power_up(codec, RK817_CODEC_PLAYBACK);
 		/* HP_CP_EN , CP 2.3V */
@@ -786,15 +790,15 @@ static int rk817_digital_mute(struct snd_soc_dai *dai, int mute)
 		rk817_codec_ctl_gpio(rk817, CODEC_SET_HP, 0);
 	} else {
 		switch (rk817->playback_path) {
-		case SPK_PATH:
-		case RING_SPK:
-			rk817_codec_ctl_gpio(rk817, CODEC_SET_SPK, 1);
-			rk817_codec_ctl_gpio(rk817, CODEC_SET_HP, 0);
-			break;
 		case HP_PATH:
 		case HP_NO_MIC:
 		case RING_HP:
 		case RING_HP_NO_MIC:
+			rk817_codec_ctl_gpio(rk817, CODEC_SET_SPK, 1);
+			rk817_codec_ctl_gpio(rk817, CODEC_SET_HP, 0);
+			break;
+		case SPK_PATH:
+		case RING_SPK:
 			rk817_codec_ctl_gpio(rk817, CODEC_SET_SPK, 0);
 			rk817_codec_ctl_gpio(rk817, CODEC_SET_HP, 1);
 			break;
@@ -973,11 +977,26 @@ static int rk817_codec_parse_dt_property(struct device *dev,
 		    desc_to_gpio(rk817->hp_ctl_gpio));
 	}
 
+	rk817->stby_ctl_gpio = devm_gpiod_get_optional(dev, "stby-ctl",
+						  GPIOD_OUT_LOW);
+	if (!IS_ERR_OR_NULL(rk817->stby_ctl_gpio)) {
+		DBG("%s : stby-ctl-gpio %d\n", __func__,
+		    desc_to_gpio(rk817->stby_ctl_gpio));
+	}
+
 	rk817->spk_ctl_gpio = devm_gpiod_get_optional(dev, "spk-ctl",
 						  GPIOD_OUT_LOW);
 	if (!IS_ERR_OR_NULL(rk817->spk_ctl_gpio)) {
 		DBG("%s : spk-ctl-gpio %d\n", __func__,
 		    desc_to_gpio(rk817->spk_ctl_gpio));
+	}
+
+	ret = of_property_read_u32(node, "stby-mute-delay-ms",
+				   &rk817->stby_mute_delay);
+	if (ret < 0) {
+		DBG("%s() Can not read property stby-mute-delay-ms\n",
+			__func__);
+		rk817->stby_mute_delay = 0;
 	}
 
 	ret = of_property_read_u32(node, "spk-mute-delay-ms",
