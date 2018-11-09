@@ -1188,11 +1188,9 @@ s32 gt1x_touch_event_handler(u8 *data, struct input_dev *dev, struct input_dev *
 	}
 
 	/* cacl checksum */
-	for (i = 0; i < 1 + 8 * touch_num + 2; i++) {
+	for (i = 0; i < 1 + 8 * touch_num + 2; i++)
 		check_sum += touch_data[i];
-		printk("data[%d]=%x ", i, touch_data[i]);
-	}
-	printk("\n");
+
 	if (check_sum) { /* checksum error*/
 		ret = gt1x_i2c_read(GTP_READ_COOR_ADDR, touch_data, 3 + 8 * touch_num);
 		if (ret) {
