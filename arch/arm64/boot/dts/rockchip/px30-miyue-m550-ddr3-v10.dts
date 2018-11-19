@@ -804,3 +804,7 @@
 &vpu_combo {
 	status = "okay";
 };
+
+&wdt {
+	status = "okay";
+};
