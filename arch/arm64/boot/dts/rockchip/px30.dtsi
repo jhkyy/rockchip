@@ -1811,7 +1811,7 @@
 			opp-microvolt-L2 = <950000>;
 			opp-microvolt-L3 = <950000>;
 		};
-	/*	opp-666000000 {
+		opp-666000000 {
 			opp-hz = /bits/ 64 <666000000>;
 			opp-microvolt = <1050000>;
 			opp-microvolt-L0 = <1050000>;
@@ -1826,8 +1826,7 @@
 			opp-microvolt-L1 = <1050000>;
 			opp-microvolt-L2 = <1025000>;
 			opp-microvolt-L3 = <1000000>;
-			status = "disabled";
-		};*/
+		};
 	};
 
 	pinctrl: pinctrl {
