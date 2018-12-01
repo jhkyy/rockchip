@@ -370,7 +370,12 @@
 
 &gmac {
 	phy-supply = <&vcc_phy>;
-	clock_in_out = "output";
+	assigned-clocks = <&cru SCLK_GMAC>;
+	assigned-clock-parents = <&gmac_clkin>;
+	clock_in_out = "input";
+	pinctrl-names = "default";
+	pinctrl-0 = <&rmii_pins &mac_refclk>;
+	wolirq-gpio = <&gpio2 12 GPIO_ACTIVE_LOW>;
 	snps,reset-gpio = <&gpio2 13 GPIO_ACTIVE_LOW>;
 	snps,reset-active-low;
 	snps,reset-delays-us = <0 50000 50000>;

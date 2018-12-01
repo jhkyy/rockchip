@@ -1223,14 +1223,53 @@ static int gen10g_config_init(struct phy_device *phydev)
 	return 0;
 }
 
+#define RTL8201F_PHY_ID 0x001cc816
+
 int genphy_suspend(struct phy_device *phydev)
 {
 	int value;
+	struct net_device * ndev = phydev->attached_dev;
 
 	mutex_lock(&phydev->lock);
 
-	value = phy_read(phydev, MII_BMCR);
-	phy_write(phydev, MII_BMCR, value | BMCR_PDOWN);
+	if (phydev->phy_id == RTL8201F_PHY_ID) {
+		//PMEB PIN function selection
+		phy_write(phydev, 0x1f, 0x0007);
+		phy_write(phydev, 0x13, 0xC434);
+
+		//set MAC address
+		phy_write(phydev, 0x1f, 0x0012);
+		phy_write(phydev, 0x10, ((u16)ndev->dev_addr[1] << 8) + ndev->dev_addr[0]);
+		phy_write(phydev, 0x11, ((u16)ndev->dev_addr[3] << 8) + ndev->dev_addr[2]);
+		phy_write(phydev, 0x12, ((u16)ndev->dev_addr[5] << 8) + ndev->dev_addr[4]);
+
+		//set max packet length
+		phy_write(phydev, 0x1f, 0x0011);
+		phy_write(phydev, 0x11, 0x1fff);
+		//WOL event select and enable: Enable WOL Wake-Up Frame 0 event
+		phy_write(phydev, 0x10, 0x1000);
+
+		//wake up frame selection and enable
+		phy_write(phydev, 0x1f, 0x0008);
+		phy_write(phydev, 0x10, 0x3000);
+		phy_write(phydev, 0x11, 0x0020);
+		phy_write(phydev, 0x12, 0x03c0);
+
+		//Wake—up frame CRC
+		phy_write(phydev, 0x1f, 0x0010);
+		phy_write(phydev, 0x10, 0xdf6b);
+
+		//RMII TX isolate enable
+		phy_write(phydev, 0x1f, 0x0007);
+		phy_write(phydev, 0x14, 0xb0d5);
+
+		//RMII RX isolate enable
+		phy_write(phydev, 0x1f, 0x0011);
+		phy_write(phydev, 0x13, 0x8002);
+	} else {
+		value = phy_read(phydev, MII_BMCR);
+		phy_write(phydev, MII_BMCR, value | BMCR_PDOWN);
+	}
 
 	mutex_unlock(&phydev->lock);
 
@@ -1248,6 +1287,36 @@ int genphy_resume(struct phy_device *phydev)
 	int value;
 
 	mutex_lock(&phydev->lock);
+
+	if (phydev->phy_id == RTL8201F_PHY_ID) {
+		//disable PMEB PIN function selection
+		phy_write(phydev, 0x1f, 0x0007);
+		phy_write(phydev, 0x19, 0x4434);
+
+		//disable PMEB PIN function selection
+		phy_write(phydev, 0x1f, 0x0007);
+		phy_write(phydev, 0x13, 0x4434);
+
+		//disable ALL wol Event
+		phy_write(phydev, 0x1f, 0x0011);
+		phy_write(phydev, 0x10, 0x0000);
+
+		//clear MII/RMII TX Isolate
+		phy_write(phydev, 0x1f, 0x0007);
+		phy_write(phydev, 0x14, 0x30d5);
+
+		//clear MII/RMII RX Isolate
+		phy_write(phydev, 0x1f, 0x0011);
+		phy_write(phydev, 0x13, 0x0002);
+
+		//WOL reset
+		phy_write(phydev, 0x1f, 0x0011);
+		phy_write(phydev, 0x11, 0x9fff);
+
+		//set phy clk output to mac, wol must use Crystal in phy
+		phy_write(phydev, 0x1f, 0x007);
+		phy_write(phydev, 0x10, phy_read(phydev, 0x10) & ~(BIT(12)));
+	}
 
 	value = phy_read(phydev, MII_BMCR);
 	phy_write(phydev, MII_BMCR, value & ~BMCR_PDOWN);
