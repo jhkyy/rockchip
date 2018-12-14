@@ -33,7 +33,6 @@
 #define AR0144CS_AEC_PK_DGAIN_REG 0x305E /* gain Bit 0-5 */
 #define AR0144CS_FETCH_DGAIN(VAL) (VAL & 0x07FF)
 
-
 #define AR0144CS_AEC_PK_LONG_EXPO_REG 0x3012 /* Exposure Bits 0-15 */
 #define AR0144CS_FETCH_BYTE_EXP(VAL) (VAL & 0xFFFF) /* 16Bits */
 #define AR0144CS_AFPS_ENABLE_REG 0x30ce
@@ -50,7 +49,6 @@
 #define AR0144CS_HORIZONTAL_END_REG 0x3008
 #define AR0144CS_VERTICAL_START_REG 0x3002
 #define AR0144CS_VERTICAL_END_REG 0x3006
-
 #define AR0144CS_READOUT_FLIP_MIRROR_REG 0x3040
 #define dual_sync
 
@@ -61,8 +59,6 @@ static struct aptina_camera_module_custom_config ar0144cs_custom_config;
 
 static struct aptina_camera_module_reg ar0144cs_init_tab_1280_800_25fps[] = {
 /*STATE = Master Clock, 49200000*/
-
-
 {APTINA_CAMERA_MODULE_REG_TYPE_DATA, 0x3F4C, 0x4B3F},
 {APTINA_CAMERA_MODULE_REG_TYPE_DATA, 0x3F4C, 0x003F},
 {APTINA_CAMERA_MODULE_REG_TYPE_DATA, 0x3F4E, 0x5718},
@@ -98,7 +94,7 @@ static struct aptina_camera_module_reg ar0144cs_init_tab_1280_800_25fps[] = {
 {APTINA_CAMERA_MODULE_REG_TYPE_DATA, 0x302A, 0x0006},
 {APTINA_CAMERA_MODULE_REG_TYPE_DATA, 0x302C, 0x0002},
 {APTINA_CAMERA_MODULE_REG_TYPE_DATA, 0x302E, 0x0009},
-{APTINA_CAMERA_MODULE_REG_TYPE_DATA, 0x3030, 0x008E},
+{APTINA_CAMERA_MODULE_REG_TYPE_DATA, 0x3030, 0x00A0},
 {APTINA_CAMERA_MODULE_REG_TYPE_DATA, 0x3036, 0x000C},
 {APTINA_CAMERA_MODULE_REG_TYPE_DATA, 0x30B0, 0x0028},
 {APTINA_CAMERA_MODULE_REG_TYPE_DATA, 0x3038, 0x0001},
@@ -123,9 +119,7 @@ static struct aptina_camera_module_reg ar0144cs_init_tab_1280_800_25fps[] = {
 {APTINA_CAMERA_MODULE_REG_TYPE_DATA, 0x30A6, 0x0001},
 {APTINA_CAMERA_MODULE_REG_TYPE_DATA, 0x3040, 0x0000},
 {APTINA_CAMERA_MODULE_REG_TYPE_DATA, 0x31D0, 0x0001},
-
 };
-
 
 /* ======================================================================== */
 
@@ -162,9 +156,7 @@ static struct aptina_camera_module_config ar0144cs_configs[] = {
 static int ar0144cs_set_flip(struct aptina_camera_module *cam_mod,
 	struct pltfrm_camera_module_reg reglist[],
 	int len)
-
 {
-
 	int i, value = 0, mode = 0;
 
 	mode = aptina_camera_module_get_flip_mirror(cam_mod);
@@ -212,7 +204,6 @@ static int ar0144cs_g_vts(struct aptina_camera_module *cam_mod, u32 *vts)
 	aptina_camera_module_pr_debug(cam_mod, "updated vts = %d,vts_min=%d\n", value, cam_mod->vts_min);
 	*vts = value;
 
-
 	return 0;
 err:
 	aptina_camera_module_pr_err(cam_mod,
@@ -238,14 +229,12 @@ static int ar0144cs_auto_adjust_fps(struct aptina_camera_module *cam_mod,
 	if (IS_ERR_VALUE(ret)) {
 		aptina_camera_module_pr_err(cam_mod, "failed with error (%d)\n", ret);
 	} else {
-		aptina_camera_module_pr_info(cam_mod, "updated vts = %d,vts_min=%d\n", vts, cam_mod->vts_min);
+		aptina_camera_module_pr_info(cam_mod, "updated vts = %d,vts_min=%d\n",
+			vts, cam_mod->vts_min);
 		cam_mod->vts_cur = vts;
 	}
-
 	return ret;
-
 }
-
 
 static int ar0144cs_set_vts(struct aptina_camera_module *cam_mod,
 	u32 vts)
@@ -262,12 +251,11 @@ static int ar0144cs_set_vts(struct aptina_camera_module *cam_mod,
 	if (IS_ERR_VALUE(ret)) {
 		aptina_camera_module_pr_err(cam_mod, "failed with error (%d)\n", ret);
 	} else {
-		aptina_camera_module_pr_debug(cam_mod, "updated vts = %d,vts_min=%d\n", vts, cam_mod->vts_min);
+		aptina_camera_module_pr_debug(cam_mod, "updated vts = %d,vts_min=%d\n",
+			vts, cam_mod->vts_min);
 		cam_mod->vts_cur = vts;
 	}
-
 	return ret;
-
 }
 
 static int ar0144cs_write_aec(struct aptina_camera_module *cam_mod)
@@ -290,11 +278,9 @@ static int ar0144cs_write_aec(struct aptina_camera_module *cam_mod)
 		u32 exp_time = cam_mod->exp_config.exp_time;
 		u32 again, dgain;
 
-		
 		mutex_lock(&cam_mod->lock);
 		tgain = tgain * cam_mod->exp_config.gain_percent / 100;
 
-		
 		if (tgain < 256) { /* 1x~2x */
 			again = 0x00;
 			dgain = tgain;
@@ -308,8 +294,6 @@ static int ar0144cs_write_aec(struct aptina_camera_module *cam_mod)
 			again = 0x30;
 			dgain = tgain >> 3;
 		}
-
-
 
 		if (!IS_ERR_VALUE(ret) && cam_mod->auto_adjust_fps)
 		ret = ar0144cs_auto_adjust_fps(cam_mod,
@@ -330,7 +314,6 @@ static int ar0144cs_write_aec(struct aptina_camera_module *cam_mod)
 			AR0144CS_AEC_PK_LONG_EXPO_REG,
 			AR0144CS_FETCH_BYTE_EXP(exp_time));
 
-
 		if (!cam_mod->auto_adjust_fps)
 			ret |= ar0144cs_set_vts(cam_mod, cam_mod->exp_config.vts_value);
 
@@ -343,9 +326,7 @@ static int ar0144cs_write_aec(struct aptina_camera_module *cam_mod)
 	if (IS_ERR_VALUE(ret))
 		aptina_camera_module_pr_err(cam_mod,
 			"failed with error (%d)\n", ret);
-
 	return ret;
-
 }
 
 static int ar0144cs_g_ctrl(struct aptina_camera_module *cam_mod, u32 ctrl_id)
@@ -426,9 +407,7 @@ static int ar0144cs_filltimings(struct aptina_camera_module_custom_config *custo
 		timings->fine_integration_time_max_margin =
 			AR0144CS_FINE_INTG_TIME_MAX_MARGIN;
 	}
-
 	return 0;
-
 }
 
 /*--------------------------------------------------------------------------*/
@@ -524,14 +503,15 @@ static int ar0144cs_start_streaming(struct aptina_camera_module *cam_mod)
 {
 		int ret = 0;
 		struct i2c_client *client = v4l2_get_subdevdata(&cam_mod->sd);
+
 		aptina_camera_module_pr_info(cam_mod,
 		"i2c:0x%x active config=%s\n",
-		client->addr, cam_mod->active_config->name);	
-
+		client->addr, cam_mod->active_config->name);
 
 		ret = ar0144cs_g_vts(cam_mod, &cam_mod->vts_min);
 		if (IS_ERR_VALUE(ret))
 			goto err;
+
 	#ifdef dual_sync 
 		mutex_lock(&cam_mod->lock);
 		ret = aptina_camera_module_write_reg(cam_mod, 0x301a, 0x0958);
@@ -539,13 +519,11 @@ static int ar0144cs_start_streaming(struct aptina_camera_module *cam_mod)
 	#else
 		ret = aptina_camera_module_write_reg(cam_mod, 0x301a, 0x005c);
 	#endif
-	
 
 		if (IS_ERR_VALUE(ret))
 			goto err;
 
 		msleep(25);
-	
 		return 0;
 	err:
 		aptina_camera_module_pr_err(cam_mod,
@@ -559,8 +537,11 @@ static int ar0144cs_start_streaming(struct aptina_camera_module *cam_mod)
 static int ar0144cs_stop_streaming(struct aptina_camera_module *cam_mod)
 {
 		int ret = 0;
-	
-		aptina_camera_module_pr_info(cam_mod, "\n");
+		struct i2c_client *client = v4l2_get_subdevdata(&cam_mod->sd);
+
+		aptina_camera_module_pr_info(cam_mod,"i2c:0x%x active config=%s\n",
+		client->addr, cam_mod->active_config->name);
+
 		mutex_lock(&cam_mod->lock);
 		ret = aptina_camera_module_write_reg(cam_mod, 0x301a, 0x0058);
 		mutex_unlock(&cam_mod->lock);
@@ -568,7 +549,6 @@ static int ar0144cs_stop_streaming(struct aptina_camera_module *cam_mod)
 			goto err;
 
 		msleep(25);
-	
 		return 0;
 	err:
 		aptina_camera_module_pr_err(cam_mod, "failed with error (%d)\n", ret);
