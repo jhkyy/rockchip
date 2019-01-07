@@ -662,6 +662,9 @@
 &i2c1 {
 	status = "okay";
 
+        i2c-scl-rising-time-ns = <450>;
+        i2c-scl-falling-time-ns = <15>;
+
 	gt1x: gt1x@14 {
 		compatible = "goodix,gt1x";
 		reg = <0x14>;
@@ -669,6 +672,11 @@
 		goodix,rst-gpio = <&gpio0 RK_PB4 GPIO_ACTIVE_HIGH>;
 		goodix,irq-gpio = <&gpio0 RK_PA5 IRQ_TYPE_LEVEL_LOW>;
 	};
+
+        atsha204a@64 {
+            compatible = "atmel,atsha204a";
+            reg = <0x64>;
+        };
 };
 
 &i2c2 {
