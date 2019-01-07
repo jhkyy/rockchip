@@ -1,0 +1,7 @@
+comment "ATSHA204A Crypto Support for px30"
+
+config ATSHA204A_CRYPTO_SUPPORT
+	bool "ATSHA204A Crypto Support"
+	default n
+	help
+	  ATSHA204A Crypto IC Support.
