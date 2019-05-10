@@ -1,0 +1,328 @@
+/*
+ * Copyright (c) 2016 Fuzhou Rockchip Electronics Co., Ltd
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of the
+ *     License, or (at your option) any later version.
+ *
+ *     This file is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ * Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/dts-v1/;
+#include "rk3399-box-ds100l.dtsi"
+
+/ {
+	model = "Rockchip RK3399 Board Box (DS100)";
+	compatible = "rockchip-ds100","rockchip,rk3399-box";
+
+	fiq_debugger: fiq-debugger {
+		compatible = "rockchip,fiq-debugger";
+		rockchip,serial-id = <2>;
+		rockchip,wake-irq = <0>;
+		rockchip,irq-mode-enable = <0>;  /* If enable uart uses irq instead of fiq */
+		rockchip,baudrate = <115200>;  /* Only 115200 and 1500000 */
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart2c_xfer>;
+		interrupts = <GIC_SPI 150 IRQ_TYPE_LEVEL_HIGH 0>;
+	};
+
+	vpd0: virtual-pd0 {
+		compatible = "linux,extcon-pd-virtual";
+		dp-det-gpios = <&gpio4 25 GPIO_ACTIVE_LOW>;
+		//hdmi-5v-gpios = <&gpio4 28 GPIO_ACTIVE_LOW>;
+		/* 0: positive, 1: negative*/
+		vpd,init-flip = <0>;
+		/* 0: u2, 1: u3*/
+		vpd,init-ss = <0>;
+		/* 0: dfp, 1: ufp, 2: dp 3: dp/ufp */
+		vpd,init-mode = <3>;
+	};
+
+	rt5640-sound {
+                compatible = "simple-audio-card";
+                simple-audio-card,format = "i2s";
+                simple-audio-card,name = "rockchip,rt5640-codec";
+                simple-audio-card,mclk-fs = <256>;
+                simple-audio-card,widgets =
+                        "Microphone", "Mic Jack",
+                        "Headphone", "Headphone Jack";
+                simple-audio-card,routing =
+                        "Mic Jack", "MICBIAS1",
+                        "IN1P", "Mic Jack",
+                        "Headphone Jack", "HPOL",
+                        "Headphone Jack", "HPOR";
+                simple-audio-card,cpu {
+                        sound-dai = <&i2s0>;
+                };
+                simple-audio-card,codec {
+                        sound-dai = <&rt5640>;
+                };
+        };
+
+	hdmi-sound {
+                status = "okay";
+                compatible = "simple-audio-card";
+                simple-audio-card,format = "i2s";
+                simple-audio-card,mclk-fs = <256>;
+                simple-audio-card,name = "ROCKCHIP,HDMI";
+                simple-audio-card,cpu {
+                        sound-dai = <&i2s2>;
+                };
+                simple-audio-card,codec {
+                        sound-dai = <&hdmi>;
+                };
+        };
+
+        dp-sound {
+                status = "okay";
+                compatible = "simple-audio-card";
+                simple-audio-card,name = "ROCKCHIP,DP";
+                simple-audio-card,cpu {
+                        sound-dai = <&spdif>;
+                };
+                simple-audio-card,codec {
+                        sound-dai = <&cdn_dp 1>;
+                };
+        };
+
+	rk_headset {
+                compatible = "rockchip_headset";
+                headset_gpio = <&gpio4 28 GPIO_ACTIVE_LOW>;
+                pinctrl-names = "default";
+                pinctrl-0 = <&hp_det>;
+                io-channels = <&saradc 2>;
+        };
+	leds {
+              compatible = "gpio-leds";
+              power_led: power {
+              label = "rk-3399power";
+              /*linux,default-trigger = "ir-power-click";*/
+              default-state = "on";
+              gpios = <&gpio4 18 GPIO_ACTIVE_HIGH>;
+              pinctrl-names = "default";
+              pinctrl-0 = <&led_power>;
+             };
+		};
+};
+
+
+&vpu {
+	status = "okay";
+	/* 0 means ion, 1 means drm */
+	//allocator = <0>;
+};
+
+&rkvdec {
+	status = "okay";
+	/* 0 means ion, 1 means drm */
+	//allocator = <0>;
+};
+
+
+&cdn_dp {
+	status = "okay";
+	extcon = <&vpd0>;
+	phys = <&tcphy0_dp>;
+};
+
+&display_subsystem {
+	status = "okay";
+};
+
+&hdmi {
+	/* remove the hdmi_cec, reused by edp_hpd */
+	pinctrl-0 = <&hdmi_i2c_xfer>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	#sound-dai-cells = <0>;
+	status = "okay";
+};
+
+&i2c1 {
+        status = "okay";
+        i2c-scl-rising-time-ns = <460>;
+        i2c-scl-falling-time-ns = <15>;
+
+        rt5640: rt5640@1c {
+                #sound-dai-cells = <0>;
+                compatible = "realtek,rt5640";
+                reg = <0x1c>;
+                clocks = <&cru SCLK_I2S_8CH_OUT>;
+                clock-names = "mclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s_8ch_mclk>;
+                realtek,in1-differential;
+        };
+};
+
+&i2c4 {
+	status = "okay";
+	fusb0: fusb30x@22 {
+		compatible = "fairchild,fusb302";
+		reg = <0x22>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&fusb0_int>;
+		vbus-5v-gpios = <&gpio1 3 GPIO_ACTIVE_LOW>;
+		int-n-gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
+		status = "disabled";
+	};
+};
+
+&i2s0 {
+        #sound-dai-cells = <0>;
+        status = "okay";
+};
+
+&spdif {
+        status = "okay";
+};
+
+&vopb {
+	status = "okay";
+};
+
+&vopb_mmu {
+	status = "okay";
+};
+
+&vopl {
+	status = "okay";
+};
+
+&vopl_mmu {
+	status = "okay";
+};
+
+&hdmi_in_vopb {
+	status = "okay";
+};
+
+&hdmi_in_vopl {
+	status = "disabled";
+};
+
+&dp_in_vopb {
+	status = "disabled";
+};
+
+&dp_in_vopl {
+	status = "okay";
+};
+
+&route_hdmi {
+	connect = <&vopb_out_hdmi>;
+	status = "okay";
+};
+
+&pinctrl {
+	pinctrl-names = "default";
+	pinctrl-0 = <&cpt_gpio>;
+
+	sdio0 {
+		sdio0_bus1: sdio0-bus1 {
+			rockchip,pins =
+				<2 20 RK_FUNC_1 &pcfg_pull_up_20ma>;
+		};
+
+		sdio0_bus4: sdio0-bus4 {
+			rockchip,pins =
+				<2 20 RK_FUNC_1 &pcfg_pull_up_20ma>,
+				<2 21 RK_FUNC_1 &pcfg_pull_up_20ma>,
+				<2 22 RK_FUNC_1 &pcfg_pull_up_20ma>,
+				<2 23 RK_FUNC_1 &pcfg_pull_up_20ma>;
+		};
+
+		sdio0_cmd: sdio0-cmd {
+			rockchip,pins =
+				<2 24 RK_FUNC_1 &pcfg_pull_up_20ma>;
+		};
+
+		sdio0_clk: sdio0-clk {
+			rockchip,pins =
+				<2 25 RK_FUNC_1 &pcfg_pull_none_20ma>;
+		};
+	};
+
+	sdmmc {
+		sdmmc_bus1: sdmmc-bus1 {
+			rockchip,pins =
+				<4 8 RK_FUNC_1 &pcfg_pull_up_8ma>;
+		};
+
+		sdmmc_bus4: sdmmc-bus4 {
+			rockchip,pins =
+				<4 8 RK_FUNC_1 &pcfg_pull_up_8ma>,
+				<4 9 RK_FUNC_1 &pcfg_pull_up_8ma>,
+				<4 10 RK_FUNC_1 &pcfg_pull_up_8ma>,
+				<4 11 RK_FUNC_1 &pcfg_pull_up_8ma>;
+		};
+
+		sdmmc_clk: sdmmc-clk {
+			rockchip,pins =
+				<4 12 RK_FUNC_1 &pcfg_pull_none_18ma>;
+		};
+
+		sdmmc_cmd: sdmmc-cmd {
+			rockchip,pins =
+				<4 13 RK_FUNC_1 &pcfg_pull_up_8ma>;
+		};
+	};
+
+	fusb30x {
+		fusb0_int: fusb0-int {
+			rockchip,pins =
+				<1 2 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	compat {
+		cpt_gpio: cpt-gpio {
+			rockchip,pins =
+				<1 18 RK_FUNC_GPIO &pcfg_output_low>;
+		};
+	};
+
+	headphone {
+                hp_det: hp-det {
+                        rockchip,pins = <4 28 RK_FUNC_GPIO &pcfg_pull_up>;
+                };
+        };
+
+     leds {
+        led_power: led-power {
+            rockchip,pins = <4 18 RK_FUNC_GPIO &pcfg_pull_none>;
+         };
+       };
+};
