@@ -385,6 +385,7 @@ static int vpd_extcon_probe(struct platform_device *pdev)
 	vpd->dev = dev;
 	dev_set_drvdata(dev, vpd);
 	vpd->enable = 1;
+	spin_lock_init(&vpd->irq_lock);
 
 	vpd->extcon = devm_extcon_dev_allocate(dev, vpd_cable);
 	if (IS_ERR(vpd->extcon)) {
