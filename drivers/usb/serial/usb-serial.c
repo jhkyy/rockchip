@@ -734,6 +734,12 @@ static int usb_serial_probe(struct usb_interface *interface,
 	int num_ports = 0;
 	int max_endpoints;
 
+
+	if((dev ->descriptor.idVendor == 0x2020) && (dev ->descriptor.idProduct == 0x2044) && ( interface ->cur_altsetting ->desc.bInterfaceNumber == 4)) //add
+	{  
+		printk(KERN_INFO"BM806 Ethernet Adapter"); 
+		return -ENODEV; 
+	}
 	mutex_lock(&table_lock);
 	type = search_serial_device(interface);
 	if (!type) {
