@@ -58,3 +58,14 @@
 		interrupts = <GIC_SPI 150 IRQ_TYPE_LEVEL_HIGH 0>;
 	};
 };
+
+&i2c5 {
+	status = "okay";
+	egalax_i2c@2a {
+		compatible = "eeti,egalax_i2c";
+		reg = <0x2a>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <13 8>;
+		int-gpios = <&gpio3 13 GPIO_ACTIVE_LOW>;
+	};
+};
