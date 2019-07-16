@@ -38,6 +38,7 @@ struct rockchip_typec_phy {
 	struct reset_control *uphy_rst;
 	struct reset_control *pipe_rst;
 	struct reset_control *tcphy_rst;
+	struct reset_control *otg_rst;
 	struct rockchip_usb3phy_port_cfg port_cfgs;
 	/* mutex to protect access to individual PHYs */
 	struct mutex lock;
