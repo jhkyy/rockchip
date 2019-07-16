@@ -2055,6 +2055,30 @@ static const struct panel_desc shelly_sca07010_bfn_lnn = {
 	.bus_format = MEDIA_BUS_FMT_RGB666_1X18,
 };
 
+static const struct drm_display_mode pvo_p133npf1p_mode = {
+	.clock = 138500,
+	.hdisplay = 1920,
+	.hsync_start = 1920 + 1 + 47,
+	.hsync_end = 1920 + 1 + 64 + 47,
+	.htotal = 1920 + 1 + 64 + 64 + 31,
+	.vdisplay = 1080,
+	.vsync_start = 1080 + 1 + 2,
+	.vsync_end = 1080 + 1 + 23 + 3,
+	.vtotal = 1080 + 1 + 23 + 22 - 15,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc pvo_p133npf1p = {
+	.modes = &pvo_p133npf1p_mode,
+	.num_modes = 1,
+	.bpc = 8,
+	.size = {
+		.width = 293,
+		.height = 165,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB666_1X18,
+};
+
 static const struct of_device_id platform_of_match[] = {
 	{
 		.compatible = "simple-panel",
@@ -2191,6 +2215,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "shelly,sca07010-bfn-lnn",
 		.data = &shelly_sca07010_bfn_lnn,
+	}, {
+		.compatible = "pvo,p133npf1p",
+		.data = &pvo_p133npf1p,
 	}, {
 		/* sentinel */
 	}
