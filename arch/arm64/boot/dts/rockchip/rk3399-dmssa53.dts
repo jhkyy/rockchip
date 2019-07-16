@@ -59,6 +59,42 @@
 	};
 };
 
+&usbdrd3_0 {
+	extcon = <&fusb0>;
+	status = "okay";
+};
+
+&tcphy0 {
+	extcon = <&fusb0>;
+	status = "okay";
+};
+
+&usbdrd3_1 {
+	status = "disabled";
+};
+
+&usbdrd_dwc3_1 {
+	status = "disabled";
+};
+
+&tcphy1 {
+	status = "disabled";
+};
+
+&i2c4 {
+	status = "okay";
+	fusb0: fusb30x@22 {
+		compatible = "fairchild,fusb302";
+		reg = <0x22>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&fusb0_int>;
+		vbus-5v-gpios = <&gpio0 6 GPIO_ACTIVE_HIGH>;
+		int-n-gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
+		fusb302,role = "ROLE_MODE_DRP";
+		status = "okay";
+	};
+};
+
 &i2c5 {
 	status = "okay";
 	egalax_i2c@2a {
@@ -67,5 +103,14 @@
 		interrupt-parent = <&gpio3>;
 		interrupts = <13 8>;
 		int-gpios = <&gpio3 13 GPIO_ACTIVE_LOW>;
+	};
+};
+
+&pinctrl {
+	fusb30x {
+		fusb0_int: fusb0-int {
+			rockchip,pins =
+				<1 2 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
 	};
 };
