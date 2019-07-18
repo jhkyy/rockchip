@@ -122,6 +122,46 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 	};
+
+	sdio_pwrseq: sdio-pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		clocks = <&rk808 1>;
+		clock-names = "clk_wifi_pmu";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_enable_h>;
+
+		/*
+		 * On the module itself this is one of these (depending
+		 * on the actual card populated):
+		 * - SDIO_RESET_L_WL_REG_ON
+		 * - PDN (power down when low)
+		 */
+		reset-gpios = <&gpio0 10 GPIO_ACTIVE_LOW>;  /* GPIO0_B2 - WIFI_REG_ON_H */
+	};
+
+	wireless-wlan {
+		compatible = "wlan-platdata";
+		rockchip,grf = <&grf>;
+		wifi_chip_type = "ap6398s";
+		sdio_vref = <1800>;
+		status = "okay";
+	};
+
+	wireless-bluetooth {
+		compatible = "bluetooth-platdata";
+		clocks = <&rk808 1>;
+		clock-names = "ext_clock";
+		/* wifi-bt-power-toggle; */
+		uart_rts_gpios = <&gpio2 19 GPIO_ACTIVE_LOW>; /* GPIO2_C3 - UART0_RTS */
+		pinctrl-names = "default", "rts_gpio";
+		pinctrl-0 = <&uart0_rts>;
+		pinctrl-1 = <&uart0_gpios>;
+		/* BT,power_gpio  = <&gpio3 19 GPIO_ACTIVE_HIGH>; */
+		BT,reset_gpio    = <&gpio0 9 GPIO_ACTIVE_LOW>; /* GPIO0_B1 - BT_REG_ON_H */
+		BT,wake_gpio     = <&gpio2 26 GPIO_ACTIVE_HIGH>; /* GPIO2_D2- BT_WAKE_L */
+		/* BT,wake_host_irq = <&gpio0 4 GPIO_ACTIVE_HIGH>; */
+		status = "okay";
+	};
 };
 
 &display_subsystem {
@@ -197,6 +237,29 @@
 	status = "disabled";
 };
 
+&uart0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_xfer &uart0_cts>;
+	status = "okay";
+};
+
+&sdio0 {
+	clock-frequency = <150000000>;
+	clock-freq-min-max = <200000 150000000>;
+	supports-sdio;
+	bus-width = <4>;
+	disable-wp;
+	cap-sd-highspeed;
+	keep-power-in-suspend;
+	mmc-pwrseq = <&sdio_pwrseq>;
+	non-removable;
+	num-slots = <1>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdio0_bus4 &sdio0_cmd &sdio0_clk>;
+	sd-uhs-sdr104;
+	status = "okay";
+};
+
 &sdmmc {
 	clock-frequency = <100000000>;
 	clock-freq-min-max = <100000 100000000>;
@@ -248,6 +311,18 @@
 	lcd-panel {
 		lcd_en: lcd-en {
 			rockchip,pins = <1 13 RK_FUNC_GPIO &pcfg_pull_up>; //GPIO1_B4 / EDP_LCD_EN
+		};
+	};
+	sdio-pwrseq {
+		wifi_enable_h: wifi-enable-h {
+			rockchip,pins =
+				<0 10 RK_FUNC_GPIO &pcfg_pull_none>; /* GPIO0_B2 - WIFI_REG_ON_H */
+		};
+	};
+	wireless-bluetooth {
+		uart0_gpios: uart0-gpios {
+			rockchip,pins =
+				<2 19 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };
