@@ -102,4 +102,10 @@ config ROCKCHIP_VENDOR_STORAGE_UPDATE_LOADER
 	help
 	  Say y here to enable rockchip vendor storage update loader support.
 	  The /dev/vendor_storage must set root user access only.
+
+config ROCKCHIP_DMSSA53
+	bool "SGI Twin Star on Rockchip RK3399 SOCs"
+	help
+	  Support for Rockchip's Cortex-A9 Single-to-Quad-Core-SoCs
+
 endif
