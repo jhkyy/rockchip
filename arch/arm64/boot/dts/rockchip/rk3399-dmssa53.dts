@@ -162,6 +162,13 @@
 		/* BT,wake_host_irq = <&gpio0 4 GPIO_ACTIVE_HIGH>; */
 		status = "okay";
 	};
+
+	rt5660-sound {
+		compatible = "rockchip,rockchip-audio-rt5660";
+		rockchip,model = "rockchip_rt5660";
+		rockchip,i2s-controller = <&i2s0>;
+		rockchip,audio-codec = <&rt5660>;
+	};
 };
 
 &display_subsystem {
@@ -274,6 +281,57 @@
 	pinctrl-0 = <&sdmmc_clk &sdmmc_cmd &sdmmc_cd &sdmmc_bus4>;
 	card-detect-delay = <800>;
 	status = "okay";
+};
+
+&i2c0 {
+	rk808: pmic@1b {
+		regulators {
+			vcca3v0_codec: LDO_REG2 {
+				regulator-name = "vcca3v0_codec";
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-state-mem {
+					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <3300000>;
+				};
+			};
+			vcca1v8_codec: LDO_REG7 {
+				regulator-name = "vcca1v8_codec";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-state-mem {
+					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <1800000>;
+				};
+			};
+		};
+	};
+};
+
+&i2c1 {
+	status = "okay";
+	rt5660: rt5660@1c {
+		#sound-dai-cells = <0>;
+		compatible = "realtek,rt5660";
+		reg = <0x1c>;
+		/* codec-avdd-gpio = <&gpio3 10 GPIO_ACTIVE_LOW>; */
+		/* codec-avdd-delay = <100>; */
+		/* codec-micvdd-gpio = <&gpio3 11 GPIO_ACTIVE_HIGH>; */
+		/* codec-spkvdd-gpio = <&gpio3 12 GPIO_ACTIVE_HIGH>; */
+		amp-shutdown-gpio = <&gpio3 6 GPIO_ACTIVE_HIGH>; /* GPIO3_A6 - AMP_SHUTDN */
+		/* amp-mute-gpio = <&gpio6 5 GPIO_ACTIVE_HIGH>; */
+
+		clocks = <&cru SCLK_I2S_8CH_OUT>;
+		clock-names = "mclk";
+		/* interrupt-parent = <&gpio6>; */
+		/* interrupts = <7 IRQ_TYPE_EDGE_FALLING>; */
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s_8ch_mclk>;
+	};
 };
 
 &i2c4 {
