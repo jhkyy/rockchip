@@ -59,6 +59,7 @@
 	};
 
 	backlight: backlight {
+		status = "okay";
 		compatible = "pwm-backlight";
 		pwms = <&pwm0 0 5000000 0>; //200 Hz
 		enable-gpios = <&gpio3 0 GPIO_ACTIVE_HIGH>; //GPIO3_A0
@@ -103,9 +104,6 @@
 		compatible = "pvo,p133npf1p", "panel-simple";
 		backlight = <&backlight>;
 		power-supply = <&vcc_lcd>;
-		enable-gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>; //GPIO1_B4 / EDP_LCD_EN
-		pinctrl-names = "default";
-		pinctrl-0 = <&lcd_en>;
 
 		ports {
 			panel_in: endpoint {
@@ -116,7 +114,11 @@
 
 	vcc_lcd: vcc-lcd-regulator {
 		compatible = "regulator-fixed";
+		enable-active-high;
 		regulator-name = "vcc_lcd";
+		gpio = <&gpio1 13 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&lcd_en>;
 		regulator-always-on;
 		regulator-boot-on;
 		regulator-min-microvolt = <3300000>;
@@ -368,7 +370,7 @@
 	};
 	lcd-panel {
 		lcd_en: lcd-en {
-			rockchip,pins = <1 13 RK_FUNC_GPIO &pcfg_pull_up>; //GPIO1_B4 / EDP_LCD_EN
+			rockchip,pins = <1 13 RK_FUNC_GPIO &pcfg_pull_none>; //GPIO1_B4 / EDP_LCD_EN
 		};
 	};
 	sdio-pwrseq {
