@@ -1818,15 +1818,15 @@ static const struct panel_desc lg_lm270wr3_ssa1 = {
 };
 
 static const struct drm_display_mode lg_lp079qx1_sp0v_mode = {
-	.clock = 200000,
-	.hdisplay = 1536,
-	.hsync_start = 1536 + 12,
-	.hsync_end = 1536 + 12 + 16,
-	.htotal = 1536 + 12 + 16 + 48,
-	.vdisplay = 2048,
-	.vsync_start = 2048 + 8,
-	.vsync_end = 2048 + 8 + 4,
-	.vtotal = 2048 + 8 + 4 + 8,
+	.clock = 153000,
+	.hdisplay = 1920,
+	.hsync_start = 1920 + 80,
+	.hsync_end = 1920 + 80 + 60,
+	.htotal = 1920 + 80 + 60 + 190,
+	.vdisplay = 1080,
+	.vsync_start = 1080 + 6,
+	.vsync_end = 1080 + 6 + 8,
+	.vtotal = 1080 + 6 + 8 + 38,
 	.vrefresh = 60,
 	.flags = DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
 };
@@ -1835,10 +1835,10 @@ static const struct panel_desc lg_lp079qx1_sp0v = {
 	.modes = &lg_lp079qx1_sp0v_mode,
 	.num_modes = 1,
 	.size = {
-		.width = 129,
-		.height = 171,
+		.width = 315,
+		.height = 185,
 	},
-	.bus_format = MEDIA_BUS_FMT_RGB666_1X18,
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
 };
 
 static const struct drm_display_mode lg_lp097qx1_spa1_mode = {

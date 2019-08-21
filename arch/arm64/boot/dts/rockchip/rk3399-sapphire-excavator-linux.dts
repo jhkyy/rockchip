@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Fuzhou Rockchip Electronics Co., Ltd
+ * Copyright (c) 2016 Fuzhou Rockchip Electronics Co., Ltd
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -103,7 +103,35 @@
 		};
 	};
 
-	gpio_keys: gpio-keys {
+	edp_panel: edp-panel {
+		compatible = "lg,lp079qx1-sp0v", "panel-simple";
+		backlight = <&backlight>;
+		power-supply = <&vcc3v3_s0>;
+		//enable-gpios = <&gpio4 30 GPIO_ACTIVE_HIGH>;
+		//pinctrl-names = "default";
+		//pinctrl-0 = <&lcd_panel_reset>;
+
+		ports {
+			panel_in_edp: endpoint {
+				remote-endpoint = <&edp_out_panel>;
+			};
+		};
+	};
+
+	hall_sensor: hall-mh248 {
+		compatible = "hall-mh248";
+		pinctrl-names = "default";
+		pinctrl-0 = <&mh248_irq_gpio>;
+		irq-gpio = <&gpio1 0 IRQ_TYPE_EDGE_BOTH>;
+		hall-active = <1>;
+		status = "okay";
+	};
+
+	hdmi_sound: hdmi-sound {
+		status = "okay";
+	};
+
+	gpio-keys {
 		compatible = "gpio-keys";
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -121,42 +149,6 @@
 			debounce-interval = <100>;
 		};
 	};
-
-	panel: panel {
-		compatible = "simple-panel";
-		backlight = <&backlight>;
-		power-supply = <&vcc_lcd>;
-		enable-gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
-		prepare-delay-ms = <20>;
-		enable-delay-ms = <20>;
-
-		display-timings {
-			native-mode = <&timing0>;
-
-			timing0: timing0 {
-				clock-frequency = <200000000>;
-				hactive = <1536>;
-				vactive = <2048>;
-				hfront-porch = <12>;
-				hsync-len = <16>;
-				hback-porch = <48>;
-				vfront-porch = <8>;
-				vsync-len = <4>;
-				vback-porch = <8>;
-				hsync-active = <0>;
-				vsync-active = <0>;
-				de-active = <0>;
-				pixelclk-active = <0>;
-			};
-		};
-
-		ports {
-			panel_in: endpoint {
-				remote-endpoint = <&edp_out>;
-			};
-		};
-	};
-
 	ext_cam_clk: external-camera-clock {
 		compatible = "fixed-clock";
 		clock-frequency = <27000000>;
@@ -164,141 +156,21 @@
 		#clock-cells = <0>;
 	};
 
-	test_power: test-power {
-		status = "okay";
-	};
+
 };
 
-&backlight {
+&rkisp1_0 {
 	status = "okay";
-	enable-gpios = <&gpio4 29 GPIO_ACTIVE_HIGH>;
-};
 
-&display_subsystem {
-	status = "okay";
-};
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-&edp {
-	status = "okay";
-	force-hpd;
-
-	ports {
-		port@1 {
-			reg = <1>;
-
-			edp_out: endpoint {
-				remote-endpoint = <&panel_in>;
-			};
+		isp0_mipi_in: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&dphy_rx0_out>;
 		};
 	};
-};
-
-&edp_in_vopb {
-	status = "disabled";
-};
-
-&hdmi {
-	pinctrl-names = "default";
-	pinctrl-0 = <&hdmi_i2c_xfer>, <&hdmi_cec>;
-	#address-cells = <1>;
-	#size-cells = <0>;
-	#sound-dai-cells = <0>;
-	status = "okay";
-};
-
-&hdmi_in_vopl {
-	status = "disabled";
-};
-
-&i2c1 {
-	status = "okay";
-
-	gsl3673: gsl3673@40 {
-		compatible = "GSL,GSL3673";
-		reg = <0x40>;
-		screen_max_x = <1536>;
-		screen_max_y = <2048>;
-		irq_gpio_number = <&gpio1 20 IRQ_TYPE_LEVEL_LOW>;
-		rst_gpio_number = <&gpio4 22 GPIO_ACTIVE_HIGH>;
-	};
-
-	tc358749x: tc358749x@f {
-		compatible = "toshiba,tc358749";
-		reg = <0xf>;
-		clocks = <&ext_cam_clk>;
-		clock-names = "refclk";
-		reset-gpios = <&gpio2 7 GPIO_ACTIVE_LOW>;
-		/* hardware irq-pin is dangling
-		 * connect it to other gpio then configurate follow interrupt
-		 * or del config just using software poll
-		 */
-		//interrupt-parent = <&gpio2>;
-		//interrupts = <12 IRQ_TYPE_LEVEL_LOW>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&hdmiin_gpios>;
-		status = "disabled";
-		rockchip,camera-module-index = <0>;
-		rockchip,camera-module-facing = "back";
-		rockchip,camera-module-name = "default";
-		rockchip,camera-module-lens-name = "default";
-		port {
-			hdmiin_out0: endpoint {
-				/* Unlinked mipi dphy rx0 */
-				//remote-endpoint = <&mipi_in_ucam0>;
-				data-lanes = <1 2 3 4>;
-				clock-noncontinuous;
-				link-frequencies =
-					/bits/ 64 <297000000>;
-			};
-		};
-	};
-
-	vm149c: vm149c@0c {
-		compatible = "silicon touch,vm149c";
-		status = "okay";
-		reg = <0x0c>;
-		rockchip,camera-module-index = <0>;
-		rockchip,camera-module-facing = "back";
-	};
-
-	ov13850: ov13850@10 {
-		compatible = "ovti,ov13850";
-		status = "okay";
-		reg = <0x10>;
-		clocks = <&cru SCLK_CIF_OUT>;
-		clock-names = "xvclk";
-
-		/* conflict with csi-ctl-gpios */
-		reset-gpios = <&gpio2 10 GPIO_ACTIVE_HIGH>;
-		pwdn-gpios = <&gpio1 4 GPIO_ACTIVE_HIGH>;
-		pinctrl-names = "rockchip,camera_default";
-		pinctrl-0 = <&cif_clkout>;
-		rockchip,camera-module-index = <0>;
-		rockchip,camera-module-facing = "back";
-		rockchip,camera-module-name = "CMK-CT0116";
-		rockchip,camera-module-lens-name = "Largan-50013A1";
-
-		lens-focus = <&vm149c>;
-
-		port {
-			ucam_out0: endpoint {
-				remote-endpoint = <&mipi_in_ucam0>;
-				data-lanes = <1 2>;
-			};
-		};
-	};
-};
-
-&i2c4 {
-	status = "okay";
-};
-
-&isp0_mmu {
-	status = "okay";
-};
-
-&isp1_mmu {
-	status = "okay";
 };
 
 &mipi_dphy_rx0 {
@@ -329,6 +201,24 @@
 				reg = <0>;
 				remote-endpoint = <&isp0_mipi_in>;
 			};
+		};
+	};
+};
+
+&isp0_mmu {
+	status = "okay";
+};
+
+&rkisp1_1 {
+	status = "okay";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp1_mipi_in: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&dphy_tx1rx1_out>;
 		};
 	};
 };
@@ -366,57 +256,124 @@
 	};
 };
 
-&pcie_phy {
+&isp1_mmu {
 	status = "okay";
 };
 
-&pcie0 {
-	status = "okay";
+&saradc {
+	vref-supply = <&vccadc_ref>;
 };
 
-&rkisp1_0 {
+&vpu {
 	status = "okay";
-
-	port {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		isp0_mipi_in: endpoint@0 {
-			reg = <0>;
-			remote-endpoint = <&dphy_rx0_out>;
-		};
-	};
+	/* 0 means ion, 1 means drm */
+	//allocator = <0>;
 };
 
-&rkisp1_1 {
+&rkvdec {
 	status = "okay";
+	/* 0 means ion, 1 means drm */
+	//allocator = <0>;
+};
 
-	port {
-		#address-cells = <1>;
-		#size-cells = <0>;
+&backlight {
+	status = "okay";
+	enable-gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
+};
 
-		isp1_mipi_in: endpoint@0 {
-			reg = <0>;
-			remote-endpoint = <&dphy_tx1rx1_out>;
-		};
-	};
+&display_subsystem {
+	status = "okay";
 };
 
 &route_edp {
 	status = "okay";
 };
 
-&rt5651_sound {
-	compatible = "rockchip,multicodecs-card";
-	rockchip,card-name = "rockchip,rt5651-codec";
-	rockchip,codec-hp-det;
-	rockchip,mclk-fs = <256>;
-	rockchip,cpu = <&i2s0>;
-	rockchip,codec = <&rt5651>;
+&edp {
+	status = "okay";
+	force-hpd;
+
+	ports {
+		edp_out: port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			edp_out_panel: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&panel_in_edp>;
+			};
+		};
+	};
 };
 
-&saradc {
-	vref-supply = <&vccadc_ref>;
+&hdmi {
+	pinctrl-names = "default";
+	pinctrl-0 = <&hdmi_i2c_xfer>, <&hdmi_cec>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	#sound-dai-cells = <0>;
+	status = "okay";
+};
+
+&i2c1 {
+	status = "okay";
+
+	tc358749x: tc358749x@f {
+		compatible = "toshiba,tc358749";
+		reg = <0xf>;
+		clocks = <&ext_cam_clk>;
+		clock-names = "refclk";
+		reset-gpios = <&gpio2 7 GPIO_ACTIVE_LOW>;
+		interrupt-parent = <&gpio2>;
+		interrupts = <12 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&hdmiin_gpios>;
+		status = "disabled";
+		port {
+			hdmiin_out0: endpoint {
+				/* Unlinked mipi dphy rx0 */
+				//remote-endpoint = <&mipi_in_ucam0>;
+				data-lanes = <1 2 3 4>;
+				clock-noncontinuous;
+				link-frequencies =
+					/bits/ 64 <297000000>;
+			};
+		};
+	};
+
+	ov13850: ov13850@10 {
+		compatible = "ovti,ov13850";
+		status = "okay";
+		reg = <0x10>;
+		clocks = <&cru SCLK_CIF_OUT>;
+		clock-names = "xvclk";
+
+		/* conflict with csi-ctl-gpios */
+		reset-gpios = <&gpio2 10 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio1 4 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "rockchip,camera_default";
+		pinctrl-0 = <&cif_clkout>;
+
+		port {
+			ucam_out0: endpoint {
+				remote-endpoint = <&mipi_in_ucam0>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+};
+
+&i2c4 {
+	status = "okay";
+};
+
+&pcie_phy {
+	status = "okay";
+};
+
+&pcie0 {
+	status = "okay";
 };
 
 &vopb {
@@ -440,9 +397,21 @@
 };
 
 &pinctrl {
+	hallsensor {
+		mh248_irq_gpio: mh248-irq-gpio {
+			rockchip,pins = <1 0 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
 	buttons {
 		pwrbtn: pwrbtn {
 			rockchip,pins = <0 5 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	lcd-panel {
+		lcd_panel_reset: lcd-panel-reset {
+			rockchip,pins = <4 30 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
@@ -459,7 +428,3 @@
 		};
 	};
 };
-
-/* DON'T PUT ANYTHING BELOW HERE.  PUT IT ABOVE PINCTRL */
-/* DON'T PUT ANYTHING BELOW HERE.  PUT IT ABOVE PINCTRL */
-/* DON'T PUT ANYTHING BELOW HERE.  PUT IT ABOVE PINCTRL */

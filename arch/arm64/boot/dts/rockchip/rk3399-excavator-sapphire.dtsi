@@ -44,36 +44,34 @@
 
 / {
 	compatible = "rockchip,rk3399-sapphire-excavator", "rockchip,rk3399";
-
-	dummy_codec: dummy-codec {
-		status = "disabled";
-		compatible = "rockchip,dummy-codec";
-		#sound-dai-cells = <0>;
-		clocks = <&cru SCLK_I2S_8CH_OUT>;
-		clock-names = "mclk";
-		pinctrl-names = "default";
-		pinctrl-0 = <&i2s_8ch_mclk>;
+	/* first 64k(0xff8c0000~0xff8d0000) for ddr and suspend */
+	iram: sram@ff8d0000 {
+	    status = "okay";
+		compatible = "mmio-sram";
+		reg = <0x0 0xff8d0000 0x0 0x20000>; /* 128k */
 	};
 
-	rockchip_i2s_sound: rockchip-i2s-sound {
-		status = "disabled";
-		compatible = "simple-audio-card";
-		simple-audio-card,name = "rockchip,rockchip-i2s-sound";
-		simple-audio-card,format = "i2s";
-		simple-audio-card,mclk-fs = <256>;
-		simple-audio-card,cpu {
-			sound-dai = <&i2s0>;
-		};
-		simple-audio-card,codec {
-			sound-dai = <&dummy_codec>;
-		};
-	};
-
-	rt5651_sound: rt5651-sound {
+	rt5640-sound {
+		compatible = "rockchip,rockchip-rt5640-sound";
+		rockchip,cpu = <&i2s0>;
+		rockchip,codec = <&rt5640 &rt5640>;
 		status = "okay";
+	};
+
+	rockchip_headset {
+		compatible = "rockchip_headset";
+		headset_gpio = <&gpio4 28 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&hp_det>;
+		io-channels = <&saradc 2>;
+		// hook_gpio = ;
+		// hook_down_type = ; //interrupt hook key down status
+	};
+
+	/*rt5640-sound {
 		compatible = "simple-audio-card";
 		simple-audio-card,format = "i2s";
-		simple-audio-card,name = "realtek,rt5651-codec";
+		simple-audio-card,name = "realtek,rt5640-codec";
 		simple-audio-card,mclk-fs = <256>;
 		simple-audio-card,widgets =
 			"Microphone", "Mic Jack",
@@ -87,37 +85,9 @@
 			sound-dai = <&i2s0>;
 		};
 		simple-audio-card,codec {
-			sound-dai = <&rt5651>;
+			sound-dai = <&rt5640>;
 		};
-	};
-
-	dw_hdmi_audio: dw-hdmi-audio {
-		status = "disabled";
-		compatible = "rockchip,dw-hdmi-audio";
-		#sound-dai-cells = <0>;
-	};
-
-	dp_sound: dp-sound {
-		status = "disabled";
-		compatible = "rockchip,cdndp-sound";
-		rockchip,cpu = <&spdif>;
-		rockchip,codec = <&cdn_dp 1>;
-	};
-
-	hdmi_sound: hdmi-sound {
-		status = "okay";
-		compatible = "simple-audio-card";
-		simple-audio-card,format = "i2s";
-		simple-audio-card,mclk-fs = <256>;
-		simple-audio-card,name = "rockchip,hdmi";
-
-		simple-audio-card,cpu {
-			sound-dai = <&i2s2>;
-		};
-		simple-audio-card,codec {
-			sound-dai = <&hdmi>;
-		};
-	};
+	};*/
 
 	spdif-sound {
 		status = "okay";
@@ -179,6 +149,11 @@
 	};
 };
 
+/*&dmac_bus {
+	iram = <&iram>;
+	rockchip,force-iram;
+};*/
+
 &dfi {
 	status = "okay";
 };
@@ -190,25 +165,81 @@
 	downdifferential = <20>;
 	system-status-freq = <
 		/*system status         freq(KHz)*/
-		SYS_STATUS_NORMAL       800000
-		SYS_STATUS_REBOOT       528000
-		SYS_STATUS_SUSPEND      200000
-		SYS_STATUS_VIDEO_1080P  200000
-		SYS_STATUS_VIDEO_4K     600000
-		SYS_STATUS_VIDEO_4K_10B 800000
-		SYS_STATUS_PERFORMANCE  800000
-		SYS_STATUS_BOOST        400000
-		SYS_STATUS_DUALVIEW     600000
-		SYS_STATUS_ISP          600000
+		SYS_STATUS_NORMAL       856000
+		SYS_STATUS_REBOOT       416000
+		SYS_STATUS_SUSPEND      416000
+		SYS_STATUS_VIDEO_1080P  416000
+		SYS_STATUS_VIDEO_4K     856000
+		SYS_STATUS_VIDEO_4K_10B 856000
+		SYS_STATUS_PERFORMANCE  856000
+		SYS_STATUS_BOOST        856000
+		SYS_STATUS_DUALVIEW     856000
+		SYS_STATUS_ISP          856000
+	>;
+	vop-pn-msch-readlatency = <
+	/* plane_number  readlatency */
+		0	0
+		4	0x20
 	>;
 	vop-bw-dmc-freq = <
 	/* min_bw(MB/s) max_bw(MB/s) freq(KHz) */
-		0       762      200000
-		763     1893     400000
-		1894    3012     528000
-		3013    99999    800000
+		763     1893     416000
+		3013    99999    856000
 	>;
-	auto-min-freq = <200000>;
+	auto-min-freq = <416000>;
+};
+
+&dmc_opp_table {
+	compatible = "operating-points-v2";
+
+	opp-200000000 {
+		opp-hz = /bits/ 64 <200000000>;
+		opp-microvolt = <900000>;
+		status = "disabled";
+	};
+	opp-300000000 {
+		opp-hz = /bits/ 64 <300000000>;
+		opp-microvolt = <900000>;
+		status = "disabled";
+	};
+	opp-400000000 {
+		opp-hz = /bits/ 64 <400000000>;
+		opp-microvolt = <900000>;
+		status = "disabled";
+	};
+	opp-416000000 {
+		opp-hz = /bits/ 64 <416000000>;
+		opp-microvolt = <900000>;
+	};
+	opp-528000000 {
+		opp-hz = /bits/ 64 <528000000>;
+		opp-microvolt = <900000>;
+		status = "disabled";
+	};
+	opp-600000000 {
+		opp-hz = /bits/ 64 <600000000>;
+		opp-microvolt = <900000>;
+		status = "disabled";
+	};
+	opp-800000000 {
+		opp-hz = /bits/ 64 <800000000>;
+		opp-microvolt = <900000>;
+		status = "disabled";
+	};
+	opp-856000000 {
+		opp-hz = /bits/ 64 <856000000>;
+		opp-microvolt = <900000>;
+	};
+	opp-928000000 {
+		opp-hz = /bits/ 64 <928000000>;
+		opp-microvolt = <900000>;
+		status = "disabled";
+	};
+	opp-1056000000 {
+		opp-hz = /bits/ 64 <1056000000>;
+		opp-microvolt = <900000>;
+		status = "disabled";
+	};
 };
 
 &spdif {
@@ -224,16 +255,33 @@
 	i2c-scl-rising-time-ns = <300>;
 	i2c-scl-falling-time-ns = <15>;
 
-	rt5651: rt5651@1a {
+	/*rt5640: rt5640@1c {
 		#sound-dai-cells = <0>;
-		compatible = "rockchip,rt5651";
-		reg = <0x1a>;
+		compatible = "rockchip,rt5640";
+		reg = <0x1c>;
 		clocks = <&cru SCLK_I2S_8CH_OUT>;
 		clock-names = "mclk";
+		realtek,in1-differential;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s_8ch_mclk>;
 		spk-con-gpio = <&gpio0 11 GPIO_ACTIVE_HIGH>;
 		hp-det-gpio = <&gpio4 28 GPIO_ACTIVE_LOW>;
+	};*/
+	rt5640: rt5640@1c {
+		#sound-dai-cells = <0>;
+		compatible = "realtek,rt5640";
+		reg = <0x1c>;
+		clocks = <&cru SCLK_I2S_8CH_OUT>;
+		//clocks = <&cru SCLK_I2S_8CH_OUT>;
+		clock-names = "mclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s_8ch_mclk>;
+		realtek,in1-differential;
+		//realtek,in2-differential;
+		//hp-det-gpio = <&gpio5 19 GPIO_ACTIVE_LOW>;
+		//io-channels = <&saradc 2>;
+		//hp-det-adc-value = <500>;
+		status = "okay";
 	};
 };
 
@@ -258,10 +306,7 @@
 };
 
 &pcie0 {
-	ep-gpios = <&gpio2 4 GPIO_ACTIVE_HIGH>;
-	num-lanes = <4>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&pcie_clkreqn>;
+	status = "okay";
 };
 
 &uart0 {
@@ -315,6 +360,11 @@
 		uart0_gpios: uart0-gpios {
 			rockchip,pins =
 				<2 19 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+	headphone {
+		hp_det: hp-det {
+			rockchip,pins = <4 28 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 };

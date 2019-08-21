@@ -94,6 +94,34 @@
 		#clock-cells = <0>;
 	};
 
+	dw_hdmi_audio: dw-hdmi-audio {
+		status = "disabled";
+		compatible = "rockchip,dw-hdmi-audio";
+		#sound-dai-cells = <0>;
+	};
+
+	dp_sound: dp-sound {
+		status = "disabled";
+		compatible = "rockchip,cdndp-sound";
+		rockchip,cpu = <&spdif>;
+		rockchip,codec = <&cdn_dp 1>;
+	};
+
+	hdmi_sound: hdmi-sound {
+		status = "disabled";
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,name = "rockchip,hdmi";
+
+		simple-audio-card,cpu {
+			sound-dai = <&i2s2>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&hdmi>;
+		};
+	};
+
 	sdio_pwrseq: sdio-pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		clocks = <&rk808 1>;
@@ -222,7 +250,7 @@
 	assigned-clocks = <&cru SCLK_RMII_SRC>;
 	assigned-clock-parents = <&clkin_gmac>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&rgmii_pins>;
+	pinctrl-0 = <&rgmii_pins>,<&phy_pmeb>,<&phy_int>;
 	tx_delay = <0x28>;
 	rx_delay = <0x11>;
 	status = "okay";
@@ -287,7 +315,7 @@
 		interrupt-parent = <&gpio1>;
 		interrupts = <21 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&pmic_int_l>;
+		pinctrl-0 = <&pmic_int_l &pmic_dvs2>;
 		rockchip,system-power-controller;
 		wakeup-source;
 		#clock-cells = <1>;
@@ -405,7 +433,7 @@
 				regulator-max-microvolt = <3000000>;
 				regulator-name = "vcca3v0_codec";
 				regulator-state-mem {
-					regulator-off-in-suspend;
+					regulator-on-in-suspend;
 				};
 			};
 
@@ -428,7 +456,7 @@
 				regulator-max-microvolt = <1800000>;
 				regulator-name = "vcca1v8_codec";
 				regulator-state-mem {
-					regulator-off-in-suspend;
+					regulator-on-in-suspend;
 				};
 			};
 
@@ -476,8 +504,53 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&fusb0_int>;
 		int-n-gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
-		vbus-5v-gpios = <&gpio2 0 GPIO_ACTIVE_HIGH>;
+	//	vbus-5v-gpios = <&gpio4 29 GPIO_ACTIVE_HIGH>;
+		charge-dev = <&bq25703>;
 		status = "okay";
+	};
+	bq25703: bq25703@6b {
+		compatible = "ti,bq25703";
+		reg = <0x6b>;
+		extcon = <&fusb0>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <23 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&charger_ok_int &dc_det_int &typec_charger_int &otg_en_int>;
+		ti,charge-current = <1500000>;
+		ti,max-charge-voltage = <8704000>;
+		ti,max-input-voltage = <20000000>;
+		ti,max-input-current = <6000000>;
+		ti,input-current-sdp = <500000>;
+		ti,input-current-dcp = <2000000>;
+		ti,input-current-cdp = <2000000>;
+		ti,input-current-dc = <2000000>;
+		ti,minimum-sys-voltage = <6700000>;
+		ti,otg-voltage = <5000000>;
+		ti,otg-current = <500000>;
+		ti,input-current = <500000>;
+		pd-charge-only = <0>;
+		dc-det-gpios = <&gpio0 8 GPIO_ACTIVE_HIGH>;
+		typec-charger-gpios = <&gpio2 7 GPIO_ACTIVE_HIGH>;
+		otg-mode-en-gpios = <&gpio4 29 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+	cw2015@62 {
+        status = "okay";
+        compatible = "cw201x";
+        reg = <0x62>;
+        bat_config_info = <0x15 0x42 0x60 0x59 0x52 0x58 0x4D 0x48 0x48 0x44 0x44 0x46 0x49 0x48 0x32
+            0x24 0x20 0x17 0x13 0x0F 0x19 0x3E 0x51 0x45 0x08 0x76 0x0B 0x85 0x0E 0x1C 0x2E 0x3E 0x4D 0x52 0x52
+            0x57 0x3D 0x1B 0x6A 0x2D 0x25 0x43 0x52 0x87 0x8F 0x91 0x94 0x52 0x82 0x8C 0x92 0x96 0xFF 0x7B 0xBB
+            0xCB 0x2F 0x7D 0x72 0xA5 0xB5 0xC1 0x46 0xAE>;
+        monitor_sec = <5>;
+        virtual_power = <0>;
+        divider_res1 = <200>;
+        divider_res2 = <200>;
+		bat_sn = "GFKR61820190314000882";
+		bat_man = "DONGGUAN GANFENG";
+		bat_model = "4569127-2S";
+		design_capacity = <5921>;
+		energy_full = <45>; /*45wh*/
 	};
 };
 
@@ -497,7 +570,7 @@
 &io_domains {
 	status = "okay";
 
-	bt656-supply = <&vcc_3v0>;		/* bt656_gpio2ab_ms */
+	bt656-supply = <&vcc1v8_dvp>;		/* bt656_gpio2ab_ms */
 	audio-supply = <&vcca1v8_codec>;	/* audio_gpio3d4a_ms */
 	sdmmc-supply = <&vccio_sd>;		/* sdmmc_gpio4b_ms */
 	gpio1830-supply = <&vcc_3v0>;		/* gpio1833_gpio4cd_ms */
@@ -508,16 +581,17 @@
 };
 
 &pcie0 {
-	ep-gpios = <&gpio2 RK_PA4 GPIO_ACTIVE_HIGH>;
+	ep-gpios = <&gpio4 22 GPIO_ACTIVE_HIGH>;
 	num-lanes = <4>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pcie_clkreqn>;
 	status = "okay";
 };
 
+
 &pmu_io_domains {
 	status = "okay";
-	pmu1830-supply = <&vcc_3v0>;
+	pmu1830-supply = <&vcc_1v8>;
 };
 
 &pwm0 {
@@ -667,6 +741,11 @@
 			rockchip,pins =
 				<1 21 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
+
+		pmic_dvs2: pmic-dvs2 {
+			rockchip,pins =
+				<1 18 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
 		vsel1_gpio: vsel1-gpio {
 			rockchip,pins =
 				<1 17 RK_FUNC_GPIO &pcfg_pull_down>;
@@ -676,7 +755,18 @@
 				<1 14 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
+	gmac {
+		phy_pmeb: phy_pmeb {
+			rockchip,pins =
+				<1 20 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
 
+		phy_int: phy-int {
+			rockchip,pins =
+				<1 24 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+    
 	usb2 {
 		host_vbus_drv: host-vbus-drv {
 			rockchip,pins =
@@ -695,5 +785,23 @@
 		fusb0_int: fusb0-int {
 			rockchip,pins = <1 2 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
+	};
+	bq25703 {
+		charger_ok_int: charger-ok-int {
+			rockchip,pins =
+				<1 23 RK_FUNC_GPIO &pcfg_pull_up>;
+			};
+		dc_det_int: dc_det_int {
+			rockchip,pins =
+				<0 8 RK_FUNC_GPIO &pcfg_pull_up>;
+			};			
+			typec_charger_int: typec_charger_int {
+			rockchip,pins =
+				<2 7 RK_FUNC_GPIO &pcfg_pull_up>;
+			};
+			otg_en_int: otg_en_int {
+			rockchip,pins =
+				<4 29 RK_FUNC_GPIO &pcfg_pull_down>;
+			};
 	};
 };
