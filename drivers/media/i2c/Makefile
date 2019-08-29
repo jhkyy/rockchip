@@ -111,6 +111,10 @@ obj-$(CONFIG_VIDEO_GC2035)	+= gc2035.o
 obj-$(CONFIG_VIDEO_GC2355)	+= gc2355.o
 obj-$(CONFIG_VIDEO_GC2385)	+= gc2385.o
 obj-$(CONFIG_VIDEO_GC5025)	+= gc5025.o
+####add
+obj-$(CONFIG_VIDEO_GC2375H)	+= gc2375h.o
+obj-$(CONFIG_VIDEO_GC5024)	+= gc5024.o
+####end
 obj-$(CONFIG_VIDEO_GC8034)	+= gc8034.o
 obj-$(CONFIG_VIDEO_SC031GS)	+= sc031gs.o
 obj-$(CONFIG_VIDEO_BF3925)	+= bf3925.o
