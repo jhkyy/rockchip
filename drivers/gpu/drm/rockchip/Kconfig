@@ -18,7 +18,7 @@ config DRM_ROCKCHIP
 
 config ROCKCHIP_DRM_DEBUG
 	tristate "Rockchip DRM debug"
-	depends on DRM_ROCKCHIP
+	depends on DRM_ROCKCHIP && DEBUG_FS
 	help
 	  This option add a debug nod to dump buf from application.
 	  dump path: /data/vop_buf
@@ -32,7 +32,7 @@ config ROCKCHIP_DRM_DEBUG
 
 config ROCKCHIP_CDN_DP
 	tristate "Rockchip cdn DP"
-	depends on DRM_ROCKCHIP
+	depends on DRM_ROCKCHIP && PHY_ROCKCHIP_TYPEC
 	select SND_SOC_HDMI_CODEC if SND_SOC
 	help
 	  This selects support for Rockchip SoC specific extensions

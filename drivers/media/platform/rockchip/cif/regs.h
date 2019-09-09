@@ -192,7 +192,6 @@
 #define CSI_ENABLE_CROP			(0x1 << 5)
 
 /* CIF_CSI_INTEN */
-#define CSI_FRAME0_START_INTEN(id)	(0x1 << ((id) * 2))
 #define CSI_FRAME1_START_INTEN(id)	(0x1 << ((id) * 2 + 1))
 #define CSI_FRAME0_END_INTEN(id)	(0x1 << ((id) * 2 + 8))
 #define CSI_FRAME1_END_INTEN(id)	(0x1 << ((id) * 2 + 9))
@@ -204,6 +203,14 @@
 #define CSI_ALL_FRAME_START_INTEN	(0xff << 0)
 #define CSI_ALL_FRAME_END_INTEN		(0xff << 8)
 #define CSI_ALL_ERROR_INTEN		(0x1f << 16)
+
+#define CSI_START_INTEN(id)		(0x3 << ((id) * 2))
+#define CSI_DMA_END_INTEN(id)		(0x3 << ((id) * 2 + 8))
+#define CSI_LINE_INTEN(id)		(0x1 << ((id) + 21))
+
+#define CSI_START_INTSTAT(id)		(0x3 << ((id) * 2))
+#define CSI_DMA_END_INTSTAT(id)		(0x3 << ((id) * 2 + 8))
+#define CSI_LINE_INTSTAT(id)		(0x1 << ((id) + 21))
 
 /* CIF_CSI_INTSTAT */
 #define CSI_FRAME0_START_ID0		(0x1 << 0)
@@ -228,6 +235,14 @@
 #define CSI_BANDWIDTH_LACK		(0x1 << 19)
 #define CSI_RX_FIFO_OVERFLOW		(0x1 << 20)
 
+#define CSI_FRAME_END_ID0	(CSI_FRAME0_END_ID0 |\
+				 CSI_FRAME1_END_ID0)
+#define CSI_FRAME_END_ID1	(CSI_FRAME0_END_ID1 |\
+				 CSI_FRAME1_END_ID1)
+#define CSI_FRAME_END_ID2	(CSI_FRAME0_END_ID2 |\
+				 CSI_FRAME1_END_ID2)
+#define CSI_FRAME_END_ID3	(CSI_FRAME0_END_ID3 |\
+				 CSI_FRAME1_END_ID3)
 #define CSI_FIFO_OVERFLOW	(CSI_DMA_Y_FIFO_OVERFLOW |	\
 				 CSI_DMA_UV_FIFO_OVERFLOW |	\
 				 CSI_CONFIG_FIFO_OVERFLOW |	\
@@ -237,6 +252,10 @@
 #define CSIHOST_N_LANES		0x04
 #define CSIHOST_PHY_RSTZ	0x0c
 #define CSIHOST_RESETN		0x10
+#define CSIHOST_ERR1		0x20
+#define CSIHOST_ERR2		0x24
+#define CSIHOST_MSK1		0x28
+#define CSIHOST_MSK2		0x2c
 #define CSIHOST_CONTROL		0x40
 
 #define SW_CPHY_EN(x)		((x) << 0)
@@ -245,5 +264,10 @@
 #define SW_DATATYPE_FE(x)	((x) << 14)
 #define SW_DATATYPE_LS(x)	((x) << 20)
 #define SW_DATATYPE_LE(x)	((x) << 26)
+
+#define SW_FRM_END_ID0(x)	(((x) & CSI_FRAME_END_ID0) >> 8)
+#define SW_FRM_END_ID1(x)	(((x) & CSI_FRAME_END_ID1) >> 10)
+#define SW_FRM_END_ID2(x)	(((x) & CSI_FRAME_END_ID2) >> 12)
+#define SW_FRM_END_ID3(x)	(((x) & CSI_FRAME_END_ID3) >> 14)
 
 #endif

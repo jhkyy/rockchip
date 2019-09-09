@@ -583,12 +583,14 @@ static const struct vop_csc rk3399_win2_csc = {
 	.r2r_en = VOP_REG(RK3399_YUV2YUV_WIN, 0x1, 16),
 	.r2y_en = VOP_REG(RK3399_YUV2YUV_WIN, 0x1, 18),
 	.r2r_offset = RK3399_WIN2_YUV2YUV_3X3,
+	.csc_mode = VOP_REG(RK3399_YUV2YUV_WIN, 0x3, 22),
 };
 
 static const struct vop_csc rk3399_win3_csc = {
 	.r2r_en = VOP_REG(RK3399_YUV2YUV_WIN, 0x1, 24),
 	.r2y_en = VOP_REG(RK3399_YUV2YUV_WIN, 0x1, 26),
 	.r2r_offset = RK3399_WIN3_YUV2YUV_3X3,
+	.csc_mode = VOP_REG(RK3399_YUV2YUV_WIN, 0x3, 30),
 };
 
 static const struct vop_win_data rk3399_vop_win_data[] = {
@@ -625,11 +627,11 @@ static const struct vop_data rk3399_vop_big = {
 
 static const struct vop_win_data rk3399_vop_lit_win_data[] = {
 	{ .base = 0x00, .phy = &rk3288_win01_data, .csc = &rk3399_win0_csc,
-	  .type = DRM_PLANE_TYPE_PRIMARY,
+	  .type = DRM_PLANE_TYPE_OVERLAY,
 	  .feature = WIN_FEATURE_AFBDC },
 	{ .phy = NULL },
 	{ .base = 0x00, .phy = &rk3368_win23_data, .csc = &rk3399_win2_csc,
-	  .type = DRM_PLANE_TYPE_CURSOR,
+	  .type = DRM_PLANE_TYPE_PRIMARY,
 	  .feature = WIN_FEATURE_AFBDC,
 	  .area = rk3368_area_data,
 	  .area_size = ARRAY_SIZE(rk3368_area_data), },
@@ -1144,6 +1146,7 @@ static const struct vop_ctrl rk3036_ctrl_data = {
 	.hact_st_end = VOP_REG(RK3036_DSP_HACT_ST_END, 0x1fff1fff, 0),
 	.hdmi_en = VOP_REG(RK3036_AXI_BUS_CTRL, 0x1, 22),
 	.hdmi_dclk_pol = VOP_REG(RK3036_AXI_BUS_CTRL, 0x1, 23),
+	.hdmi_pin_pol = VOP_REG(RK3036_INT_SCALER, 0x7, 4),
 	.rgb_en = VOP_REG(RK3036_AXI_BUS_CTRL, 0x1, 24),
 	.rgb_dclk_pol = VOP_REG(RK3036_AXI_BUS_CTRL, 0x1, 25),
 	.lvds_en = VOP_REG(RK3036_AXI_BUS_CTRL, 0x1, 26),
@@ -1893,8 +1896,8 @@ static const struct vop_win_data rk1808_vop_raw_win_data[] = {
 
 static const struct vop_data rk1808_vop_raw = {
 	.version = VOP_VERSION(1, 0),
-	.max_input = {5120, 2880},
-	.max_output = {5120, 2880},
+	.max_input = {7680, 7680},
+	.max_output = {7680, 7680},
 	.ctrl = &rk1808_vop_raw_ctrl_data,
 	.intr = &rk1808_vop_raw_intr,
 	.win = rk1808_vop_raw_win_data,

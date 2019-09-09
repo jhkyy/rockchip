@@ -281,7 +281,7 @@
 		SYS_STATUS_NORMAL	600000
 		SYS_STATUS_REBOOT	600000
 		SYS_STATUS_SUSPEND	240000
-		SYS_STATUS_VIDEO_1080P	240000
+		SYS_STATUS_VIDEO_1080P	396000
 		SYS_STATUS_VIDEO_4K	600000
 		SYS_STATUS_PERFORMANCE	600000
 		SYS_STATUS_BOOST	396000
@@ -290,11 +290,11 @@
 	>;
 	vop-bw-dmc-freq = <
 	/* min_bw(MB/s) max_bw(MB/s) freq(KHz) */
-		0       531      240000
-		532     99999    396000
+		0       582      240000
+		583     99999    396000
 	>;
 	auto-min-freq = <240000>;
-	auto-freq-en = <1>;
+	auto-freq-en = <0>;
 };
 
 &rockchip_suspend {
@@ -329,6 +329,10 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_clk &emmc_cmd &emmc_bus8>;
 	status = "okay";
+};
+
+&nandc0 {
+	status = "disabled";
 };
 
 &sdmmc {
@@ -781,12 +785,13 @@
 		reg = <0>;
 		backlight = <&backlight>;
 		enable-gpios = <&gpio0 22 GPIO_ACTIVE_HIGH>;
-		dsi,flags = <(MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST)>;
-		dsi,format = <MIPI_DSI_FMT_RGB888>;
-		dsi,lanes = <4>;
-
 		prepare-delay-ms = <120>;
 		enable-delay-ms = <200>;
+
+		dsi,flags = <(MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
+			      MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_EOT_PACKET)>;
+		dsi,format = <MIPI_DSI_FMT_RGB888>;
+		dsi,lanes = <4>;
 
 		display-timings {
 			native-mode = <&timing0>;
@@ -808,10 +813,6 @@
 			};
 		};
 	};
-};
-
-&mipi_dphy {
-	status = "okay";
 };
 
 &route_dsi {
