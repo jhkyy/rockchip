@@ -873,7 +873,6 @@ err_config_video:
 
 int cdn_dp_audio_stop(struct cdn_dp_device *dp, struct audio_info *audio)
 {
-	u32 val;
 	int ret;
 
 	ret = cdn_dp_reg_write(dp, AUDIO_PACK_CONTROL, 0);
@@ -882,11 +881,7 @@ int cdn_dp_audio_stop(struct cdn_dp_device *dp, struct audio_info *audio)
 		return ret;
 	}
 
-	val = SPDIF_AVG_SEL | SPDIF_JITTER_BYPASS;
-	val |= SPDIF_FIFO_MID_RANGE(0xe0);
-	val |= SPDIF_JITTER_THRSH(0xe0);
-	val |= SPDIF_JITTER_AVG_WIN(7);
-	writel(val, dp->regs + SPDIF_CTRL_ADDR);
+	writel(0, dp->regs + SPDIF_CTRL_ADDR);
 
 	/* clearn the audio config and reset */
 	writel(0, dp->regs + AUDIO_SRC_CNTL);
@@ -1006,26 +1001,27 @@ static void cdn_dp_audio_config_i2s(struct cdn_dp_device *dp,
 	writel(I2S_DEC_START, dp->regs + AUDIO_SRC_CNTL);
 }
 
-static void cdn_dp_audio_config_spdif(struct cdn_dp_device *dp)
+static void cdn_dp_audio_config_spdif(struct cdn_dp_device *dp,
+				      struct audio_info *audio)
 {
 	u32 val;
+	int sub_pckt_num = 1;
 
-	val = SPDIF_AVG_SEL | SPDIF_JITTER_BYPASS;
-	val |= SPDIF_FIFO_MID_RANGE(0xe0);
-	val |= SPDIF_JITTER_THRSH(0xe0);
-	val |= SPDIF_JITTER_AVG_WIN(7);
-	writel(val, dp->regs + SPDIF_CTRL_ADDR);
-
+	if (audio->channels == 2) {
+		if (dp->link.num_lanes == 1)
+			sub_pckt_num = 2;
+		else
+			sub_pckt_num = 4;
+	}
 	writel(SYNC_WR_TO_CH_ZERO, dp->regs + FIFO_CNTL);
 
-	val = MAX_NUM_CH(2) | AUDIO_TYPE_LPCM | CFG_SUB_PCKT_NUM(4);
+	val = MAX_NUM_CH(audio->channels);
+	val |= AUDIO_TYPE_LPCM;
+	val |= CFG_SUB_PCKT_NUM(sub_pckt_num);
 	writel(val, dp->regs + SMPL2PKT_CNFG);
 	writel(SMPL2PKT_EN, dp->regs + SMPL2PKT_CNTL);
 
 	val = SPDIF_ENABLE | SPDIF_AVG_SEL | SPDIF_JITTER_BYPASS;
-	val |= SPDIF_FIFO_MID_RANGE(0xe0);
-	val |= SPDIF_JITTER_THRSH(0xe0);
-	val |= SPDIF_JITTER_AVG_WIN(7);
 	writel(val, dp->regs + SPDIF_CTRL_ADDR);
 
 	clk_prepare_enable(dp->spdif_clk);
@@ -1071,7 +1067,7 @@ int cdn_dp_audio_config(struct cdn_dp_device *dp, struct audio_info *audio)
 	if (audio->format == AFMT_I2S)
 		cdn_dp_audio_config_i2s(dp, audio);
 	else if (audio->format == AFMT_SPDIF)
-		cdn_dp_audio_config_spdif(dp);
+		cdn_dp_audio_config_spdif(dp, audio);
 
 	ret = cdn_dp_reg_write(dp, AUDIO_PACK_CONTROL, AUDIO_PACK_EN);
 

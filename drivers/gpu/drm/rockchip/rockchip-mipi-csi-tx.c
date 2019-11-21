@@ -449,6 +449,7 @@ static inline int mipi_csi_pixel_format_to_bpp(int fmt)
 {
 	switch (fmt) {
 	case MIPI_CSI_FMT_RAW8:
+	case MIPI_CSI_FMT_YUV422_8BIT:
 		return 8;
 	case MIPI_CSI_FMT_RAW10:
 		return 10;
@@ -603,6 +604,10 @@ static void rockchip_mipi_csi_path_config(struct rockchip_mipi_csi *csi)
 		vop_wc = csi->mode.hdisplay * 5 / 4;
 		data_type = 0x2b;
 		break;
+	case MIPI_CSI_FMT_YUV422_8BIT:
+		vop_wc = csi->mode.hdisplay;
+		data_type = 0x1e;
+		break;
 	default:
 		vop_wc = csi->mode.hdisplay;
 		data_type = 0x2a;
@@ -728,13 +733,19 @@ static void rockchip_mipi_csi_fmt_config(struct rockchip_mipi_csi *csi,
 					 struct drm_display_mode *mode)
 {
 	u32 mask, val;
+	u32 format;
+
+	if (csi->format == MIPI_CSI_FMT_YUV422_8BIT)
+		format = MIPI_CSI_FMT_RAW8;
+	else
+		format = csi->format;
 
 	mask = m_PIXEL_FORMAT;
-	val = v_PIXEL_FORMAT(csi->format);
+	val = v_PIXEL_FORMAT(format);
 	csi_mask_write(csi, CSITX_VOP_PATH_CTRL, mask, val, true);
 
 	mask = m_CAM_FORMAT;
-	val = v_CAM_FORMAT(csi->format);
+	val = v_CAM_FORMAT(format);
 	csi_mask_write(csi, CSITX_BYPASS_PATH_CTRL, mask, val, true);
 }
 
@@ -844,18 +855,23 @@ static int rockchip_mipi_csi_calibration(struct rockchip_mipi_csi *csi)
 
 static int rockchip_mipi_csi_pre_enable(struct rockchip_mipi_csi *csi)
 {
+	int i = 0;
+
 	rockchip_mipi_csi_pre_init(csi);
 	clk_prepare_enable(csi->dphy.ref_clk);
 	clk_prepare_enable(csi->dphy.hs_clk);
 	clk_prepare_enable(csi->pclk);
 	pm_runtime_get_sync(csi->dev);
 
-	/* MIPI CSI APB software reset request. */
-	if (csi->rst) {
-		reset_control_assert(csi->rst);
-		udelay(10);
-		reset_control_deassert(csi->rst);
-		udelay(10);
+	/* MIPI CSI TX software reset request. */
+	for (i = 0; i < csi->pdata->rsts_num; i++) {
+		if (csi->tx_rsts[i])
+			reset_control_assert(csi->tx_rsts[i]);
+	}
+	usleep_range(20, 100);
+	for (i = 0; i < csi->pdata->rsts_num; i++) {
+		if (csi->tx_rsts[i])
+			reset_control_deassert(csi->tx_rsts[i]);
 	}
 
 	if (!csi->regsbak) {
@@ -902,6 +918,7 @@ rockchip_mipi_csi_encoder_atomic_check(struct drm_encoder *encoder,
 
 	switch (csi->format) {
 	case MIPI_CSI_FMT_RAW8:
+	case MIPI_CSI_FMT_YUV422_8BIT:
 		s->output_mode = ROCKCHIP_OUT_MODE_P888;
 		break;
 	case MIPI_CSI_FMT_RAW10:
@@ -1019,7 +1036,10 @@ rockchip_mipi_csi_connector_set_property(struct drm_connector *connector,
 	struct rockchip_mipi_csi *csi = con_to_csi(connector);
 
 	if (property == csi->csi_tx_path_property) {
-		csi->path_mode = val;
+		/*
+		 * csi->path_mode = val;
+		 * we get path mode from dts now
+		 */
 		return 0;
 	}
 
@@ -1251,7 +1271,7 @@ static int rockchip_mipi_csi_probe(struct platform_device *pdev)
 	struct rockchip_mipi_csi *csi;
 	struct device_node *np = dev->of_node;
 	struct resource *res;
-	int ret;
+	int ret, val, i;
 
 	csi = devm_kzalloc(dev, sizeof(*csi), GFP_KERNEL);
 	if (!csi)
@@ -1301,10 +1321,14 @@ static int rockchip_mipi_csi_probe(struct platform_device *pdev)
 		csi->grf = NULL;
 	}
 
-	csi->rst = devm_reset_control_get(dev, "apb");
-	if (IS_ERR(csi->rst)) {
-		dev_err(dev, "failed to get reset control\n");
-		csi->rst = NULL;
+	for (i = 0; i < csi->pdata->rsts_num; i++) {
+		struct reset_control *rst =
+			devm_reset_control_get(dev, csi->pdata->rsts[i]);
+		if (IS_ERR(rst)) {
+			dev_err(dev, "failed to get %s\n", csi->pdata->rsts[i]);
+			return PTR_ERR(rst);
+		}
+		csi->tx_rsts[i] = rst;
 	}
 
 	ret = rockchip_mipi_dphy_attach(csi);
@@ -1329,6 +1353,9 @@ static int rockchip_mipi_csi_probe(struct platform_device *pdev)
 	if (ret)
 		mipi_dsi_host_unregister(&csi->dsi_host);
 
+	if (!of_property_read_u32(np, "csi-tx-bypass-mode", &val))
+		csi->path_mode = val;
+
 	return ret;
 }
 
@@ -1350,10 +1377,20 @@ static const u32 rk1808_csi_grf_reg_fields[MAX_FIELDS] = {
 	[TURNDISABLE]		= GRF_REG_FIELD(0x0444,  5,  5),
 };
 
+static const char * const rk1808_csi_tx_rsts[] = {
+	"tx_apb",
+	"tx_bytehs",
+	"tx_esc",
+	"tx_cam",
+	"tx_i",
+};
+
 static const struct rockchip_mipi_csi_plat_data rk1808_socdata = {
 	.csi0_grf_reg_fields = rk1808_csi_grf_reg_fields,
 	.max_bit_rate_per_lane = 2000000000UL,
 	.soc_type = RK1808,
+	.rsts = rk1808_csi_tx_rsts,
+	.rsts_num = ARRAY_SIZE(rk1808_csi_tx_rsts),
 };
 
 static const struct of_device_id rockchip_mipi_csi_dt_ids[] = {

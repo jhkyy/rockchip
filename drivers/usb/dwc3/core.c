@@ -968,7 +968,7 @@ static int dwc3_probe(struct platform_device *pdev)
 	dwc->regs_size	= resource_size(res);
 
 	/* default to highest possible threshold */
-	lpm_nyet_threshold = 0xff;
+	lpm_nyet_threshold = 0xf;
 
 	/* default to -3.5dB de-emphasis */
 	tx_de_emphasis = 1;
@@ -1030,6 +1030,8 @@ static int dwc3_probe(struct platform_device *pdev)
 				"snps,tx-ipgap-linecheck-dis-quirk");
 	dwc->xhci_slow_suspend_quirk = device_property_read_bool(dev,
 				"snps,xhci-slow-suspend-quirk");
+	dwc->xhci_trb_ent_quirk = device_property_read_bool(dev,
+				"snps,xhci-trb-ent-quirk");
 	dwc->usb3_warm_reset_on_resume_quirk = device_property_read_bool(dev,
 				"snps,usb3-warm-reset-on-resume-quirk");
 
@@ -1046,6 +1048,8 @@ static int dwc3_probe(struct platform_device *pdev)
 
 	device_property_read_u32_array(dev, "snps,grx-threshold-cfg",
 				       dwc->grxthrcfg, 2);
+	dwc->needs_fifo_resize = device_property_read_bool(dev,
+				"snps,tx-fifo-resize");
 
 	/* default to superspeed if no maximum_speed passed */
 	if (dwc->maximum_speed == USB_SPEED_UNKNOWN)

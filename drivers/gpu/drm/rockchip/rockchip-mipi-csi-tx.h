@@ -194,9 +194,13 @@ enum CONFIG_DONE_MODE {
 
 #define MIPI_CSI_FMT_RAW8		0x10
 #define MIPI_CSI_FMT_RAW10		0x11
+#define MIPI_CSI_FMT_YUV420_8BIT	0x12
+#define MIPI_CSI_FMT_YUV422_8BIT	0x13
 
 #define PHY_STATUS_TIMEOUT_US		10000
 #define CMD_PKT_STATUS_TIMEOUT_US	20000
+
+#define RK_CSI_TX_MAX_RESET		5
 
 enum soc_type {
 	RK1808,
@@ -232,6 +236,8 @@ struct rockchip_mipi_csi_plat_data {
 	const u32 *csi1_grf_reg_fields;
 	unsigned long max_bit_rate_per_lane;
 	enum soc_type soc_type;
+	const char * const *rsts;
+	int rsts_num;
 };
 
 struct mipi_dphy {
@@ -255,7 +261,7 @@ struct rockchip_mipi_csi {
 	struct drm_panel *panel;
 	struct device *dev;
 	struct regmap *grf;
-	struct reset_control *rst;
+	struct reset_control *tx_rsts[RK_CSI_TX_MAX_RESET];
 	void __iomem *regs;
 	void __iomem *test_code_regs;
 	struct regmap *regmap;

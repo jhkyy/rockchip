@@ -52,7 +52,11 @@ struct virtual_camera {
 #define to_virtual_camera(sd) container_of(sd, struct virtual_camera, subdev)
 
 static const s64 link_freq_menu_items[] = {
+	40000000,	/* minimum support frequency */
+	55000000,
+	75000000,
 	100000000,
+	125000000,
 	150000000,
 	200000000,
 	250000000,
@@ -62,9 +66,13 @@ static const s64 link_freq_menu_items[] = {
 	500000000,
 	600000000,
 	700000000,
+	752000000,
 	800000000,
 	900000000,
-	1000000000
+	1000000000,
+	1100000000,
+	1200000000,
+	1250000000	/* maximum support frequency */
 };
 
 static const struct output_pixfmt supported_formats[] = {
@@ -86,6 +94,14 @@ static const struct output_pixfmt supported_formats[] = {
 		.code = MEDIA_BUS_FMT_SRGGB10_1X10,
 	}, {
 		.code = MEDIA_BUS_FMT_RGB888_1X24,
+	}, {
+		.code = MEDIA_BUS_FMT_UYVY8_2X8,
+	}, {
+		.code = MEDIA_BUS_FMT_VYUY8_2X8,
+	}, {
+		.code = MEDIA_BUS_FMT_YUYV8_2X8,
+	}, {
+		.code = MEDIA_BUS_FMT_YVYU8_2X8,
 	},
 };
 
@@ -101,13 +117,28 @@ static const struct output_mode supported_modes[] = {
 		.hts_def = 2400,
 		.vts_def = 1200,
 	}, {
+		.width = 2560,
+		.height = 720,
+		.hts_def = 2800,
+		.vts_def = 900,
+	}, {
 		.width = 3840,
 		.height = 720,
 		.hts_def = 4300,
 		.vts_def = 900,
 	}, {
 		.width = 3840,
+		.height = 1080,
+		.hts_def = 4300,
+		.vts_def = 1200,
+	}, {
+		.width = 3840,
 		.height = 2160,
+		.hts_def = 4300,
+		.vts_def = 2400,
+	}, {
+		.width = 4096,
+		.height = 2048,
 		.hts_def = 4300,
 		.vts_def = 2400,
 	}, {
@@ -115,6 +146,11 @@ static const struct output_mode supported_modes[] = {
 		.height = 2880,
 		.hts_def = 5800,
 		.vts_def = 3100,
+	}, {
+		.width = 5760,
+		.height = 1080,
+		.hts_def = 6400,
+		.vts_def = 1300,
 	},
 };
 
@@ -358,12 +394,23 @@ static int vcamera_s_ctrl(struct v4l2_ctrl *ctrl)
 	return 0;
 }
 
+static int vcamera_g_mbus_config(struct v4l2_subdev *sd,
+				 struct v4l2_mbus_config *cfg)
+{
+	cfg->type = V4L2_MBUS_CSI2;
+	cfg->flags = V4L2_MBUS_CSI2_4_LANE |
+		     V4L2_MBUS_CSI2_CHANNELS;
+
+	return 0;
+}
+
 static struct v4l2_subdev_core_ops vcamera_core_ops = {
 	.log_status = v4l2_ctrl_subdev_log_status,
 };
 
 static struct v4l2_subdev_video_ops vcamera_video_ops = {
 	.s_stream = vcamera_s_stream,
+	.g_mbus_config = vcamera_g_mbus_config,
 };
 
 static struct v4l2_subdev_pad_ops vcamera_pad_ops = {
@@ -432,6 +479,13 @@ static int vcamera_initialize_controls(struct virtual_camera *vcam)
 			v4l2_ctrl_s_ctrl(vcam->link_freq, i - 1);
 			break;
 		}
+	}
+
+	if (i == ARRAY_SIZE(link_freq_menu_items)) {
+		dev_warn(&vcam->client->dev,
+			 "vcam->link_frequency: %lld, max support clock: %lld\n",
+			 vcam->link_frequency, link_freq_menu_items[i - 1]);
+		v4l2_ctrl_s_ctrl(vcam->link_freq, i - 1);
 	}
 
 	return 0;

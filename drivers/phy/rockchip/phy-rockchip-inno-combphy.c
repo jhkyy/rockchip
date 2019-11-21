@@ -27,7 +27,8 @@ enum rockchip_combphy_rst {
 	PHY_POR_RSTN	= 1,
 	PHY_APB_RSTN	= 2,
 	PHY_PIPE_RSTN	= 3,
-	PHY_RESET_MAX	= 4,
+	PHY_GRF_P_RSTN  = 4,
+	PHY_RESET_MAX	= 5,
 };
 
 struct combphy_reg {
@@ -63,6 +64,8 @@ struct rockchip_combphy_grfcfg {
 	struct combphy_reg	pipe_l0rxterm_set;
 	struct combphy_reg	pipe_l1rxterm_set;
 	struct combphy_reg	pipe_l0rxelec_set;
+	struct combphy_reg	u3_port_disable;
+	struct combphy_reg      u3_port_num;
 };
 
 struct rockchip_combphy_cfg {
@@ -98,6 +101,8 @@ static const char *get_reset_name(enum rockchip_combphy_rst rst)
 		return "combphy-apb";
 	case PHY_PIPE_RSTN:
 		return "combphy-pipe";
+	case PHY_GRF_P_RSTN:
+		return "usb3phy_grf_p";
 	default:
 		return "invalid";
 	}
@@ -130,6 +135,104 @@ static inline int param_write(struct regmap *base,
 
 	return regmap_write(base, reg->offset, val);
 }
+
+static inline bool param_exped(void __iomem *base,
+			       const struct combphy_reg *reg,
+			       unsigned int value)
+{
+	int ret;
+	unsigned int tmp, orig;
+	unsigned int mask = GENMASK(reg->bitend, reg->bitstart);
+
+	ret = regmap_read(base, reg->offset, &orig);
+	if (ret)
+		return false;
+
+	tmp = (orig & mask) >> reg->bitstart;
+
+	return tmp == value;
+}
+
+static ssize_t u3phy_mode_show(struct device *device,
+			       struct device_attribute *attr,
+			       char *buf)
+{
+	struct rockchip_combphy_priv *priv = dev_get_drvdata(device);
+
+	if (param_exped(priv->usb_pcie_grf,
+			&priv->cfg->grfcfg.u3_port_num, 0))
+		return sprintf(buf, "u2\n");
+	else
+		return sprintf(buf, "u3\n");
+}
+
+static ssize_t u3phy_mode_store(struct device *device,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct rockchip_combphy_priv *priv = dev_get_drvdata(device);
+
+	if (!strncmp(buf, "u3", 2) &&
+	    param_exped(priv->usb_pcie_grf,
+			&priv->cfg->grfcfg.u3_port_num, 0)) {
+		/*
+		 * Enable USB 3.0 rx termination, need to select
+		 * pipe_l0_rxtermination from USB 3.0 controller.
+		 */
+		param_write(priv->combphy_grf,
+			    &priv->cfg->grfcfg.pipe_l0rxterm_sel, false);
+		/* Set xHCI USB 3.0 port number to 1 */
+		param_write(priv->usb_pcie_grf,
+			    &priv->cfg->grfcfg.u3_port_num, true);
+		/* Enable xHCI USB 3.0 port */
+		param_write(priv->usb_pcie_grf,
+			    &priv->cfg->grfcfg.u3_port_disable, false);
+		dev_info(priv->dev, "Set usb3.0 and usb2.0 mode successfully\n");
+	} else if (!strncmp(buf, "u2", 2) &&
+		   param_exped(priv->usb_pcie_grf,
+			       &priv->cfg->grfcfg.u3_port_num, 1)) {
+		/*
+		 * Disable USB 3.0 rx termination, need to select
+		 * pipe_l0_rxtermination from grf and remove rx
+		 * termimation by grf.
+		 */
+		param_write(priv->combphy_grf,
+			    &priv->cfg->grfcfg.pipe_l0rxterm_set, false);
+		param_write(priv->combphy_grf,
+			    &priv->cfg->grfcfg.pipe_l0rxterm_sel, true);
+		/* Set xHCI USB 3.0 port number to 0 */
+		param_write(priv->usb_pcie_grf,
+			    &priv->cfg->grfcfg.u3_port_num, false);
+		/* Disable xHCI USB 3.0 port */
+		param_write(priv->usb_pcie_grf,
+			    &priv->cfg->grfcfg.u3_port_disable, true);
+		/*
+		 * Note:
+		 * Don't disable the USB 3.0 PIPE pclk here(set reg
+		 * pipe_usb3_sel to false), because USB 3.0 PHY depend
+		 * on this clk, if we disable it, we need to reinit
+		 * the USB 3.0 PHY when use USB 3.0 mode, in order to
+		 * simplify the process, don't disable this PIPE pclk.
+		 */
+		dev_info(priv->dev, "Set usb2.0 only mode successfully\n");
+	} else {
+		dev_info(priv->dev, "Same or illegal mode\n");
+	}
+
+	return count;
+}
+
+static DEVICE_ATTR_RW(u3phy_mode);
+
+static struct attribute *rockchip_combphy_u3phy_mode_attrs[] = {
+	&dev_attr_u3phy_mode.attr,
+	NULL,
+};
+
+static struct attribute_group rockchip_combphy_u3phy_mode_attr_group = {
+	.name = NULL,	/* we want them in the same directory */
+	.attrs = rockchip_combphy_u3phy_mode_attrs,
+};
 
 static u32 rockchip_combphy_pll_lock(struct rockchip_combphy_priv *priv)
 {
@@ -168,6 +271,11 @@ static int phy_pcie_init(struct rockchip_combphy_priv *priv)
 	int ret = 0;
 
 	grfcfg = &priv->cfg->grfcfg;
+
+	/* reset PCIe phy to default configuration */
+	reset_control_assert(priv->rsts[PHY_POR_RSTN]);
+	reset_control_assert(priv->rsts[PHY_APB_RSTN]);
+	reset_control_assert(priv->rsts[PHY_PIPE_RSTN]);
 
 	reset_control_deassert(priv->rsts[PHY_POR_RSTN]);
 	/* Wait PHY power on stable */
@@ -306,6 +414,12 @@ static int rockchip_combphy_set_phy_type(struct rockchip_combphy_priv *priv)
 		break;
 	case PHY_TYPE_USB3:
 		ret = phy_u3_init(priv);
+		if (ret)
+			return ret;
+
+		/* Attributes */
+		ret = sysfs_create_group(&priv->dev->kobj,
+					 &rockchip_combphy_u3phy_mode_attr_group);
 		break;
 	default:
 		dev_err(priv->dev, "incompatible PHY type\n");
@@ -349,6 +463,14 @@ static int rockchip_combphy_exit(struct phy *phy)
 	 * will be lost, and increase power consumption.
 	 */
 	clk_disable_unprepare(priv->ref_clk);
+
+	/* in case of waiting phy PLL lock timeout */
+	if (priv->phy_type == PHY_TYPE_PCIE) {
+		reset_control_assert(priv->rsts[PHY_GRF_P_RSTN]);
+		udelay(5);
+		reset_control_deassert(priv->rsts[PHY_GRF_P_RSTN]);
+		priv->phy_initialized = false;
+	}
 
 	return 0;
 }
@@ -405,7 +527,8 @@ static int rockchip_combphy_power_off(struct phy *phy)
 
 	grfcfg = &priv->cfg->grfcfg;
 
-	if (priv->phy_type == PHY_TYPE_USB3) {
+	if (priv->phy_type == PHY_TYPE_USB3 ||
+	    priv->phy_type == PHY_TYPE_PCIE) {
 		/*
 		 * Check if lane 0 powerdown is already
 		 * controlled by grf and in P3 state.
@@ -611,6 +734,17 @@ static int rockchip_combphy_probe(struct platform_device *pdev)
 	return PTR_ERR_OR_ZERO(phy_provider);
 }
 
+static int rockchip_combphy_remove(struct platform_device *pdev)
+{
+	struct rockchip_combphy_priv *priv = platform_get_drvdata(pdev);
+
+	if (priv->phy_type == PHY_TYPE_USB3 && priv->phy_initialized)
+		sysfs_remove_group(&priv->dev->kobj,
+				   &rockchip_combphy_u3phy_mode_attr_group);
+
+	return 0;
+}
+
 static int rk1808_combphy_u3_cp_test(struct rockchip_combphy_priv *priv)
 {
 	if (priv->phy_type != PHY_TYPE_USB3) {
@@ -667,6 +801,10 @@ static int rk1808_combphy_cfg(struct rockchip_combphy_priv *priv)
 	}
 
 	if (priv->phy_type == PHY_TYPE_PCIE) {
+		/* turn on pcie phy pd */
+		writel(0x08400000, priv->mmio + 0x0);
+		writel(0x03030000, priv->mmio + 0x8);
+
 		/* Adjust Lane 0 Rx interface timing */
 		writel(0x20, priv->mmio + 0x20ac);
 		writel(0x12, priv->mmio + 0x20c8);
@@ -690,8 +828,8 @@ static int rk1808_combphy_cfg(struct rockchip_combphy_priv *priv)
 		writel(0xbc, priv->mmio + 0x45d4);
 
 		/* Boost pre-emphasis */
-		writel(0x8b, priv->mmio + 0x21b8);
-		writel(0x8b, priv->mmio + 0x31b8);
+		writel(0xaa, priv->mmio + 0x21b8);
+		writel(0xaa, priv->mmio + 0x31b8);
 	} else if (priv->phy_type == PHY_TYPE_USB3) {
 		/*
 		 * Disable PHY Lane 1 which isn't needed
@@ -772,7 +910,7 @@ static int rk1808_combphy_cfg(struct rockchip_combphy_priv *priv)
 		 * largest swing and "0000" the smallest.
 		 */
 		reg = readl(priv->mmio + 0x21b8);
-		reg = (reg & ~0xf0) | 0xa0;
+		reg = (reg & ~0xf0) | 0xe0;
 		writel(reg, priv->mmio + 0x21b8);
 
 		/*
@@ -796,8 +934,39 @@ static int rk1808_combphy_cfg(struct rockchip_combphy_priv *priv)
 static int rk1808_combphy_low_power_control(struct rockchip_combphy_priv *priv,
 					    bool en)
 {
-	if (priv->phy_type != PHY_TYPE_USB3)
-		return -EINVAL;
+	if (priv->phy_type != PHY_TYPE_USB3) {
+		/* turn off pcie phy pd */
+		writel(0x08400840, priv->mmio + 0x0);
+		writel(0x03030303, priv->mmio + 0x8);
+
+		/* enter PCIe phy low power mode */
+		writel(0x36, priv->mmio + 0x2150);
+		writel(0x36, priv->mmio + 0x3150);
+		writel(0x02, priv->mmio + 0x21e8);
+		writel(0x02, priv->mmio + 0x31e8);
+		writel(0x0c, priv->mmio + 0x2080);
+		writel(0x0c, priv->mmio + 0x3080);
+		writel(0x08, priv->mmio + 0x20c0);
+		writel(0x08, priv->mmio + 0x30c0);
+		writel(0x08, priv->mmio + 0x2058);
+
+		writel(0x10, priv->mmio + 0x2044);
+		writel(0x10, priv->mmio + 0x21a8);
+		writel(0x10, priv->mmio + 0x31a8);
+		writel(0x08, priv->mmio + 0x2058);
+		writel(0x08, priv->mmio + 0x3058);
+		writel(0x40, priv->mmio + 0x205c);
+		writel(0x40, priv->mmio + 0x305c);
+		writel(0x08, priv->mmio + 0x2184);
+		writel(0x08, priv->mmio + 0x3184);
+		writel(0x00, priv->mmio + 0x2150);
+		writel(0x00, priv->mmio + 0x3150);
+		writel(0x10, priv->mmio + 0x20e0);
+		writel(0x00, priv->mmio + 0x21e8);
+		writel(0x00, priv->mmio + 0x31e8);
+
+		return 0;
+	}
 
 	if (en) {
 		/* Lane 0 tx_biasen disable */
@@ -878,6 +1047,8 @@ static const struct rockchip_combphy_cfg rk1808_combphy_cfgs = {
 		.pipe_usb3_sel	= { 0x000c, 0, 0, 0x0, 0x1 },
 		.pipe_pll_lock	= { 0x0034, 14, 14, 0x0, 0x1 },
 		.pipe_status_l0	= { 0x0034, 7, 7, 0x1, 0x0 },
+		.u3_port_disable = { 0x0434, 0, 0, 0, 1},
+		.u3_port_num	= { 0x0434, 15, 12, 0, 1},
 	},
 	.combphy_u3_cp_test	= rk1808_combphy_u3_cp_test,
 	.combphy_cfg		= rk1808_combphy_cfg,
@@ -896,6 +1067,7 @@ MODULE_DEVICE_TABLE(of, rockchip_combphy_of_match);
 
 static struct platform_driver rockchip_combphy_driver = {
 	.probe	= rockchip_combphy_probe,
+	.remove = rockchip_combphy_remove,
 	.driver = {
 		.name = "rockchip-combphy",
 		.of_match_table = rockchip_combphy_of_match,
